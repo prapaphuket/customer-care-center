@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>แจ้งเรื่องร้องเรียน · Customer Care Center</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  /* ===== CI Tokens (อ้างอิง UI Component Guide / Mockup) ===== */
+  :root{
+    --navy:#3C549A;        /* Primary · HEA Navy */
+    --navy-dark:#324684;
+    --aqua:#2BB7C4;        /* Aqua Accent */
+    --border:#E4E8F1;      /* Outline / Card border */
+    --bg:#F4F6FB;
+    --text:#1F2733;
+    --muted:#7B879C;
+    --radius:12px;
+    --ok:#1E9E6A;
+    color-scheme:light;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0;font-family:"Noto Sans Thai","Tahoma","Helvetica Neue",sans-serif;
+    background:var(--bg);color:var(--text);font-size:15px;line-height:1.55;
+  }
+  .wrap{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+  /* Header */
+  .appbar{background:var(--navy);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;}
+  .appbar h1{font-size:17px;margin:0;font-weight:600;}
+  .appbar .clear{font-size:13px;color:#cdd6f2;background:none;border:none;cursor:pointer;}
+  .step{padding:10px 18px 0;color:var(--muted);font-size:12px;letter-spacing:.08em;}
+  /* Card */
+  .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);margin:14px 16px;padding:16px;}
+  .lead{margin:2px 0 14px;color:var(--muted);font-size:13px;}
+  label.f{display:block;font-weight:600;margin:14px 0 6px;font-size:14px;}
+  label.f .req{color:#E0563B;}
+  /* Chips */
+  .chips{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .chip{border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;cursor:pointer;background:#fff;font-size:14px;transition:.15s;}
+  .chip.active{border-color:var(--navy);background:#EEF1FA;color:var(--navy);font-weight:600;box-shadow:0 0 0 1px var(--navy) inset;}
+  /* Inputs */
+  input[type=text],textarea,select{
+    width:100%;border:1px solid var(--border);border-radius:10px;padding:11px 12px;font:inherit;color:var(--text);background:#fff;outline:none;
+  }
+  input:focus,textarea:focus,select:focus{border-color:var(--navy);box-shadow:0 0 0 2px #EEF1FA;}
+  textarea{resize:none;height:104px;}
+  .counter{text-align:right;color:var(--muted);font-size:12px;margin-top:4px;}
+  /* GPS */
+  .gps{display:flex;align-items:center;gap:10px;border:1px dashed var(--border);border-radius:10px;padding:12px;}
+  .gps .ic{width:34px;height:34px;border-radius:50%;background:#EEF1FA;color:var(--navy);display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto;}
+  .gps .txt{flex:1;font-size:13px;color:var(--muted);}
+  .gps .txt b{color:var(--text);display:block;font-size:14px;}
+  .gps button{border:none;background:none;color:var(--navy);font-weight:600;cursor:pointer;font-size:13px;}
+  /* Photos */
+  .photos{display:flex;gap:10px;flex-wrap:wrap;}
+  .thumb{width:74px;height:74px;border-radius:10px;object-fit:cover;border:1px solid var(--border);position:relative;}
+  .thumb-wrap{position:relative;}
+  .thumb-wrap .rm{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#E0563B;color:#fff;border:none;font-size:12px;cursor:pointer;line-height:1;}
+  .addphoto{width:74px;height:74px;border:1px dashed var(--border);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);cursor:pointer;font-size:12px;background:#fff;}
+  .addphoto span{font-size:22px;line-height:1;color:var(--navy);}
+  .hint{color:var(--muted);font-size:12px;margin:6px 0 0;}
+  /* Submit */
+  .footer{padding:8px 16px 20px;margin-top:auto;}
+  .btn{width:100%;border:none;border-radius:12px;padding:15px;font:inherit;font-size:16px;font-weight:600;cursor:pointer;}
+  .btn-primary{background:var(--navy);color:#fff;}
+  .btn-primary:active{background:var(--navy-dark);}
+  .btn-primary:disabled{opacity:.55;cursor:not-allowed;}
+  .btn-outline{background:#fff;color:var(--navy);border:1px solid var(--navy);}
+  .err{color:#E0563B;font-size:12px;margin-top:5px;display:none;}
+  /* Success */
+  .hidden{display:none!important;}
+  .success-ic{width:70px;height:70px;border-radius:50%;background:#E7F6EE;color:var(--ok);display:flex;align-items:center;justify-content:center;font-size:36px;margin:8px auto 14px;}
+  .success h2{text-align:center;margin:0 0 6px;font-size:20px;}
+  .success p.sub{text-align:center;color:var(--muted);font-size:13px;margin:0 0 16px;}
+  .ticket{background:#EEF1FA;border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;}
+  .ticket .tid{font-size:26px;font-weight:700;color:var(--navy);letter-spacing:.02em;}
+  .ticket .badge{display:inline-block;margin-top:6px;background:#FFF3E0;color:#B8741A;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600;}
+  .kv{display:flex;justify-content:space-between;padding:9px 0;border-top:1px solid var(--border);font-size:14px;}
+  .kv:first-of-type{border-top:none;}
+  .kv .k{color:var(--muted);}
+  .note{background:#F0FAFB;border:1px solid #CDEEF1;border-radius:10px;padding:10px 12px;font-size:12px;color:#2a6b72;margin-top:14px;}
+  /* Loading overlay */
+  .overlay{position:fixed;inset:0;background:rgba(255,255,255,.8);display:none;align-items:center;justify-content:center;z-index:50;}
+  .spinner{width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== FORM VIEW ===== -->
+  <div id="formView">
+    <div class="appbar">
+      <h1>แจ้งเรื่องร้องเรียน</h1>
+      <button class="clear" onclick="clearForm()">ล้าง</button>
+    </div>
+    <div class="step">STEP 01 OF 01 · ข้อร้องเรียน</div>
+
+    <div class="card">
+      <p class="lead">เจ้าหน้าที่จะดำเนินการตรวจสอบและตอบกลับโดยเร็วที่สุด</p>
+
+      <label class="f">ประเภทเรื่อง <span class="req">*</span></label>
+      <div class="chips" id="chips">
+        <div class="chip" data-v="คุณภาพน้ำ">คุณภาพน้ำ</div>
+        <div class="chip" data-v="ท่อรั่ว/แตก">ท่อรั่ว / แตก</div>
+        <div class="chip" data-v="น้ำไม่ไหล">น้ำไม่ไหล</div>
+        <div class="chip" data-v="อื่น ๆ">อื่น ๆ</div>
+      </div>
+      <div class="err" id="errType">กรุณาเลือกประเภทเรื่อง</div>
+
+      <label class="f">หัวข้อเรื่อง <span class="req">*</span></label>
+      <input type="text" id="subject" placeholder="เช่น น้ำขุ่นมีตะกอน" maxlength="120" />
+      <div class="err" id="errSubject">กรุณากรอกหัวข้อเรื่อง</div>
+
+      <label class="f">รายละเอียด <span class="req">*</span></label>
+      <textarea id="description" maxlength="500" placeholder="อธิบายปัญหาที่พบ..."></textarea>
+      <div class="counter"><span id="cnt">0</span> / 500</div>
+      <div class="err" id="errDesc">กรุณากรอกรายละเอียด</div>
+
+      <label class="f">ตำบล <span class="req">*</span></label>
+      <select id="tambon">
+        <option value="">— เลือกตำบล —</option>
+        <option value="ไม้ขาว">ไม้ขาว</option>
+        <option value="สาคู">สาคู</option>
+      </select>
+      <div class="err" id="errTambon">กรุณาเลือกตำบล</div>
+
+      <label class="f">หมู่บ้าน / หมู่ที่ <span class="req">*</span></label>
+      <input type="text" id="village" placeholder="เช่น หมู่ 3" maxlength="60" />
+      <div class="err" id="errVillage">กรุณากรอกหมู่บ้าน/หมู่ที่</div>
+
+      <label class="f">ตำแหน่งที่เกิดเหตุ</label>
+      <div class="gps">
+        <div class="ic">📍</div>
+        <div class="txt"><b id="gpsLabel">ยังไม่ได้ระบุพิกัด</b>แตะเพื่อใช้ตำแหน่งปัจจุบัน</div>
+        <button type="button" onclick="getGPS()">ตำแหน่งปัจจุบัน</button>
+      </div>
+
+      <label class="f">แนบรูปภาพ (ถ้ามี · สูงสุด 3 รูป)</label>
+      <div class="photos" id="photos">
+        <label class="addphoto"><span>+</span>เพิ่ม
+          <input type="file" accept="image/*" id="photoInput" multiple hidden onchange="addPhotos(event)" />
+        </label>
+      </div>
+      <p class="hint">* การแนบรูปยังเป็นตัวอย่างหน้าจอ ระบบอัปโหลดไฟล์จะเปิดในเฟสถัดไป</p>
+    </div>
+
+    <div class="footer">
+      <button class="btn btn-primary" id="submitBtn" onclick="submitForm()">ส่งเรื่องร้องเรียน</button>
+    </div>
+  </div>
+
+  <!-- ===== SUCCESS VIEW ===== -->
+  <div id="successView" class="hidden">
+    <div class="appbar"><h1>ส่งเรื่องสำเร็จ</h1></div>
+    <div class="card success">
+      <div class="success-ic">✓</div>
+      <h2>ส่งเรื่องสำเร็จแล้ว</h2>
+      <p class="sub">เจ้าหน้าที่จะติดต่อกลับภายใน 1–2 วันทำการ<br/>และจะแจ้งเตือนความคืบหน้าผ่าน LINE</p>
+
+      <div class="ticket">
+        <div style="color:var(--muted);font-size:12px;">หมายเลขอ้างอิง</div>
+        <div class="tid" id="resTicket">CC-0000-0000</div>
+        <div class="badge" id="resStatus">รับเรื่องแล้ว</div>
+      </div>
+
+      <div style="margin-top:14px;">
+        <div class="kv"><span class="k">ประเภท</span><span id="resType">-</span></div>
+        <div class="kv"><span class="k">วันที่แจ้ง</span><span id="resDate">-</span></div>
+        <div class="kv"><span class="k">หัวข้อ</span><span id="resSubject">-</span></div>
+        <div class="kv"><span class="k">พื้นที่</span><span id="resArea">-</span></div>
+      </div>
+
+      <div class="note">📱 เมื่อเรื่องเปลี่ยนสถานะ ระบบจะส่งข้อความแจ้งเตือนผ่าน LINE ให้ทันที</div>
+    </div>
+    <div class="footer">
+      <button class="btn btn-primary" onclick="closeLiff()">เสร็จสิ้น / กลับสู่หน้าหลัก</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="overlay" id="overlay"><div class="spinner"></div></div>
+
+<script>
+/* =======================================================================
+   ⚙️ ตั้งค่า — แก้ 2 ค่านี้ก่อนใช้งานจริง
+   ======================================================================= */
+const CONFIG = {
+  liffId:  "2010558661-LYgPAYe3",          // <-- LIFF ID จาก LINE Developers
+  flowUrl: "https://default54cf0b457b5b41b0bbebdddef5eae5.12.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f149e98bf725428c82f0ce14a6ed7292/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HNm8D_a5M5sZlr_D4HS6jhKhZItBktMqpiyOFlhYZDo", // <-- Trigger URL (แบบ Anyone/มี sig) ของ Power Automate Flow 1
+  serviceType: "feedback"                  // หน้านี้คือบริการ "ร้องเรียน"
+};
+
+let state = { complaintType:"", gps:"", lineUserId:"", photos:[] };
+
+/* ---------- LIFF init ---------- */
+window.addEventListener("load", async () => {
+  try {
+    if (CONFIG.liffId && CONFIG.liffId.indexOf("PASTE") === -1) {
+      await liff.init({ liffId: CONFIG.liffId });
+      if (!liff.isLoggedIn()) { liff.login(); return; }
+      const p = await liff.getProfile();
+      state.lineUserId = p.userId || "";
+    }
+  } catch (e) { console.warn("LIFF init error:", e); }
+});
+
+/* ---------- Chips ---------- */
+document.getElementById("chips").addEventListener("click", (e) => {
+  const c = e.target.closest(".chip"); if (!c) return;
+  document.querySelectorAll("#chips .chip").forEach(x => x.classList.remove("active"));
+  c.classList.add("active");
+  state.complaintType = c.dataset.v;
+  hideErr("errType");
+});
+
+/* ---------- Char counter ---------- */
+const desc = document.getElementById("description");
+desc.addEventListener("input", () => { document.getElementById("cnt").textContent = desc.value.length; });
+
+/* ---------- GPS ---------- */
+function getGPS(){
+  if (!navigator.geolocation){ alert("อุปกรณ์ไม่รองรับการระบุตำแหน่ง"); return; }
+  document.getElementById("gpsLabel").textContent = "กำลังระบุพิกัด...";
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const la = pos.coords.latitude.toFixed(6), lo = pos.coords.longitude.toFixed(6);
+      state.gps = la + "," + lo;
+      document.getElementById("gpsLabel").textContent = "พิกัด: " + state.gps;
+    },
+    () => { document.getElementById("gpsLabel").textContent = "ไม่สามารถระบุพิกัดได้ (ตรวจสอบสิทธิ์ตำแหน่ง)"; },
+    { enableHighAccuracy:true, timeout:10000 }
+  );
+}
+
+/* ---------- Photos (preview only) ---------- */
+function addPhotos(ev){
+  const files = Array.from(ev.target.files || []);
+  for (const f of files){
+    if (state.photos.length >= 3){ alert("แนบได้สูงสุด 3 รูป"); break; }
+    const url = URL.createObjectURL(f);
+    state.photos.push(url);
+  }
+  ev.target.value = "";
+  renderPhotos();
+}
+function renderPhotos(){
+  const box = document.getElementById("photos");
+  box.querySelectorAll(".thumb-wrap").forEach(n => n.remove());
+  const addBtn = box.querySelector(".addphoto");
+  state.photos.forEach((u,i) => {
+    const w = document.createElement("div"); w.className = "thumb-wrap";
+    w.innerHTML = '<img src="'+u+'" class="thumb"/><button class="rm" onclick="rmPhoto('+i+')">×</button>';
+    box.insertBefore(w, addBtn);
+  });
+  addBtn.style.display = state.photos.length >= 3 ? "none" : "flex";
+}
+function rmPhoto(i){ state.photos.splice(i,1); renderPhotos(); }
+
+/* ---------- Helpers ---------- */
+function showErr(id){ document.getElementById(id).style.display = "block"; }
+function hideErr(id){ document.getElementById(id).style.display = "none"; }
+function clearForm(){
+  state.complaintType=""; state.gps=""; state.photos=[];
+  document.querySelectorAll("#chips .chip").forEach(x=>x.classList.remove("active"));
+  ["subject","description","village"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("tambon").value="";
+  document.getElementById("cnt").textContent="0";
+  document.getElementById("gpsLabel").textContent="ยังไม่ได้ระบุพิกัด";
+  renderPhotos();
+}
+
+/* ---------- Submit ---------- */
+async function submitForm(){
+  const subject = document.getElementById("subject").value.trim();
+  const description = document.getElementById("description").value.trim();
+  const tambon = document.getElementById("tambon").value;
+  const village = document.getElementById("village").value.trim();
+
+  let ok = true;
+  if(!state.complaintType){ showErr("errType"); ok=false; }
+  if(!subject){ showErr("errSubject"); ok=false; } else hideErr("errSubject");
+  if(!description){ showErr("errDesc"); ok=false; } else hideErr("errDesc");
+  if(!tambon){ showErr("errTambon"); ok=false; } else hideErr("errTambon");
+  if(!village){ showErr("errVillage"); ok=false; } else hideErr("errVillage");
+  if(!ok) return;
+
+  if(!CONFIG.flowUrl || CONFIG.flowUrl.indexOf("PASTE") > -1){
+    alert("ยังไม่ได้ตั้งค่า flowUrl ในไฟล์ (CONFIG.flowUrl)"); return;
+  }
+
+  const payload = {
+    serviceType: CONFIG.serviceType,
+    complaintType: state.complaintType,
+    subject: subject,
+    description: description,
+    tambon: tambon,
+    village: village,
+    gpsLocation: state.gps,
+    photoUrls: "",                 // TODO: ต่อระบบอัปโหลดรูป (เฟสถัดไป)
+    lineUserId: state.lineUserId
+  };
+
+  document.getElementById("overlay").style.display = "flex";
+  document.getElementById("submitBtn").disabled = true;
+  try{
+    const r = await fetch(CONFIG.flowUrl, {
+      method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload)
+    });
+    const data = await r.json();
+    if(!r.ok || !data.ticketId) throw new Error("ส่งไม่สำเร็จ");
+    showSuccess(data, payload);
+  }catch(e){
+    alert("เกิดข้อผิดพลาดในการส่งเรื่อง กรุณาลองใหม่อีกครั้ง");
+    console.error(e);
+  }finally{
+    document.getElementById("overlay").style.display = "none";
+    document.getElementById("submitBtn").disabled = false;
+  }
+}
+
+function showSuccess(data, payload){
+  document.getElementById("resTicket").textContent  = data.ticketId;
+  document.getElementById("resStatus").textContent  = data.status || "รับเรื่องแล้ว";
+  document.getElementById("resType").textContent     = payload.complaintType;
+  document.getElementById("resSubject").textContent  = payload.subject;
+  document.getElementById("resArea").textContent     = "หมู่ " + payload.village.replace(/[^0-9]/g,"") + " ต." + payload.tambon;
+  const d = new Date();
+  document.getElementById("resDate").textContent =
+    d.toLocaleDateString("th-TH",{day:"2-digit",month:"short"}) + " " +
+    d.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"});
+  document.getElementById("formView").classList.add("hidden");
+  document.getElementById("successView").classList.remove("hidden");
+  window.scrollTo(0,0);
+}
+
+function closeLiff(){
+  if (window.liff && liff.isInClient && liff.isInClient()) { liff.closeWindow(); }
+  else { location.reload(); }
+}
+</script>
+</body>
+</html>
