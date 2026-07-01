@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>ให้คะแนนความพึงพอใจ · Customer Care Center</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root{
+    --navy:#3C549A; --navy-dark:#324684; --aqua:#2BB7C4;
+    --border:#E4E8F1; --bg:#F4F6FB; --text:#1F2733; --muted:#7B879C;
+    --radius:12px; --ok:#1E9E6A; --star:#F5A623;
+    color-scheme:light;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;font-family:"Noto Sans Thai","Tahoma","Helvetica Neue",sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.55;}
+  .wrap{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+  .appbar{background:var(--navy);color:#fff;padding:14px 18px;}
+  .appbar h1{font-size:17px;margin:0;font-weight:600;}
+  .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);margin:14px 16px;padding:18px;}
+  .lead{margin:2px 0 12px;color:var(--muted);font-size:13px;text-align:center;}
+  /* Ticket ref */
+  .ref{background:#EEF1FA;border:1px solid var(--border);border-radius:10px;padding:12px 14px;text-align:center;margin-bottom:16px;}
+  .ref .tid{font-size:20px;font-weight:700;color:var(--navy);}
+  .ref .meta{color:var(--muted);font-size:13px;margin-top:2px;}
+  /* Stars */
+  .stars{display:flex;justify-content:center;gap:8px;margin:6px 0 4px;}
+  .star{font-size:44px;line-height:1;cursor:pointer;color:#DfE4EF;transition:transform .1s;user-select:none;}
+  .star.on{color:var(--star);}
+  .star:active{transform:scale(1.15);}
+  .ratingText{text-align:center;color:var(--muted);font-size:13px;min-height:20px;margin-bottom:10px;}
+  label.f{display:block;font-weight:600;margin:14px 0 6px;font-size:14px;}
+  textarea{width:100%;border:1px solid var(--border);border-radius:10px;padding:11px 12px;font:inherit;color:var(--text);background:#fff;outline:none;resize:none;height:96px;}
+  textarea:focus{border-color:var(--navy);box-shadow:0 0 0 2px #EEF1FA;}
+  .counter{text-align:right;color:var(--muted);font-size:12px;margin-top:4px;}
+  .footer{padding:8px 16px 22px;margin-top:auto;}
+  .btn{width:100%;border:none;border-radius:12px;padding:15px;font:inherit;font-size:16px;font-weight:600;cursor:pointer;}
+  .btn-primary{background:var(--navy);color:#fff;}
+  .btn-primary:active{background:var(--navy-dark);}
+  .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-outline{background:#fff;color:var(--navy);border:1px solid var(--navy);}
+  .empty{text-align:center;color:var(--muted);padding:26px 16px;font-size:14px;}
+  .empty .ic{font-size:34px;display:block;margin-bottom:8px;}
+  .hidden{display:none!important;}
+  /* Success */
+  .success-ic{width:70px;height:70px;border-radius:50%;background:#E7F6EE;color:var(--ok);display:flex;align-items:center;justify-content:center;font-size:36px;margin:10px auto 14px;}
+  .success h2{text-align:center;margin:0 0 6px;font-size:20px;}
+  .success p{text-align:center;color:var(--muted);font-size:14px;margin:0;}
+  .overlay{position:fixed;inset:0;background:rgba(255,255,255,.8);display:none;align-items:center;justify-content:center;z-index:50;}
+  .spinner{width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="appbar"><h1>ให้คะแนนความพึงพอใจ</h1></div>
+
+  <!-- FORM VIEW -->
+  <div id="formView">
+    <div class="card">
+      <p class="lead">ความคิดเห็นของคุณช่วยให้เราบริการได้ดียิ่งขึ้น</p>
+
+      <div class="ref" id="refBox">
+        <div class="tid" id="refTid">—</div>
+        <div class="meta" id="refMeta">กำลังโหลดข้อมูลเรื่อง...</div>
+      </div>
+
+      <label class="f" style="text-align:center">ให้คะแนนการให้บริการโดยรวม</label>
+      <div class="stars" id="stars">
+        <span class="star" data-v="1">★</span>
+        <span class="star" data-v="2">★</span>
+        <span class="star" data-v="3">★</span>
+        <span class="star" data-v="4">★</span>
+        <span class="star" data-v="5">★</span>
+      </div>
+      <div class="ratingText" id="ratingText">แตะดาวเพื่อให้คะแนน</div>
+
+      <label class="f">ความคิดเห็นเพิ่มเติม (ถ้ามี)</label>
+      <textarea id="comment" maxlength="500" placeholder="เล่าประสบการณ์ หรือข้อเสนอแนะ..."></textarea>
+      <div class="counter"><span id="cnt">0</span> / 500</div>
+    </div>
+
+    <div class="footer">
+      <button class="btn btn-primary" id="submitBtn" onclick="submitRating()" disabled>ส่งคะแนน</button>
+    </div>
+  </div>
+
+  <!-- SUCCESS VIEW -->
+  <div id="successView" class="hidden">
+    <div class="card success">
+      <div class="success-ic">✓</div>
+      <h2>ขอบคุณสำหรับคะแนน</h2>
+      <p>ความคิดเห็นของคุณถูกบันทึกเรียบร้อยแล้ว<br/>เราจะนำไปพัฒนาการบริการต่อไป</p>
+    </div>
+    <div class="footer">
+      <button class="btn btn-outline" onclick="closeLiff()">ปิดหน้าต่าง</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="overlay" id="overlay"><div class="spinner"></div></div>
+
+<script>
+/* =======================================================================
+   ⚙️ ตั้งค่า
+   ======================================================================= */
+const CONFIG = {
+  liffId:   "PASTE_LIFF_ID_RATING",   // <-- LIFF ID ของ LIFF app "CCC Rating"
+  flow2Url: "https://default54cf0b457b5b41b0bbebdddef5eae5.12.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c2175afe7e004e1e9546e5e7e4832f35/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=gIpO6mQowyxms-kQKNjp0ty99j2PYlQnh_zsDQf8ACU", // Flow 2 (ดึงข้อมูล ticket)
+  flow3Url: "https://default54cf0b457b5b41b0bbebdddef5eae5.12.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e79ef2109eb94e4488c15c24c61c72f7/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=dbIRCX3BTO9PnuKdpHCjk5XMpHpADU1f-wowBgbWI_g"          // <-- Flow 3 (บันทึกคะแนน)
+};
+
+let state = { ticketId:"", rating:0, lineUserId:"" };
+const RATING_LABEL = ["","น้อยที่สุด","น้อย","ปานกลาง","ดี","ดีมาก"];
+
+/* ---------- อ่าน tid จาก URL ---------- */
+function getTid(){
+  const u = new URL(location.href);
+  return (u.searchParams.get("tid") || u.searchParams.get("ticketId") || "").toUpperCase();
+}
+
+/* ---------- LIFF init + โหลดข้อมูลเรื่อง ---------- */
+window.addEventListener("load", async () => {
+  try {
+    if (CONFIG.liffId && CONFIG.liffId.indexOf("PASTE") === -1) {
+      await liff.init({ liffId: CONFIG.liffId });
+      if (!liff.isLoggedIn()) { liff.login(); return; }
+      const p = await liff.getProfile();
+      state.lineUserId = p.userId || "";
+    }
+  } catch (e) { console.warn("LIFF init error:", e); }
+
+  state.ticketId = getTid();
+  document.getElementById("refTid").textContent = state.ticketId || "—";
+  if(!state.ticketId){
+    document.getElementById("refMeta").textContent = "ไม่พบหมายเลขอ้างอิง";
+    return;
+  }
+  // ดึงข้อมูลเรื่องมาโชว์ (ผ่าน Flow 2)
+  try{
+    const r = await fetch(CONFIG.flow2Url, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ticketId:state.ticketId})});
+    const arr = await r.json();
+    const t = Array.isArray(arr)?arr[0]:null;
+    if(t){
+      const type = (t.ComplaintType&&t.ComplaintType.Value)||t.type||"";
+      const tambon = (t.Tambon&&t.Tambon.Value)||t.tambon||"";
+      document.getElementById("refMeta").textContent = [type, (tambon?("ต."+tambon):"")].filter(Boolean).join(" · ") || "เรื่องที่เสร็จสิ้นแล้ว";
+    } else {
+      document.getElementById("refMeta").textContent = "เรื่องที่เสร็จสิ้นแล้ว";
+    }
+  }catch(e){ document.getElementById("refMeta").textContent = "เรื่องที่เสร็จสิ้นแล้ว"; }
+});
+
+/* ---------- Stars ---------- */
+document.getElementById("stars").addEventListener("click", (e) => {
+  const s = e.target.closest(".star"); if(!s) return;
+  state.rating = parseInt(s.dataset.v,10);
+  paintStars();
+});
+function paintStars(){
+  document.querySelectorAll("#stars .star").forEach(s => {
+    s.classList.toggle("on", parseInt(s.dataset.v,10) <= state.rating);
+  });
+  document.getElementById("ratingText").textContent = state.rating ? (state.rating + " ดาว · " + RATING_LABEL[state.rating]) : "แตะดาวเพื่อให้คะแนน";
+  document.getElementById("submitBtn").disabled = state.rating < 1;
+}
+
+/* ---------- Comment counter ---------- */
+const cm = document.getElementById("comment");
+cm.addEventListener("input", () => { document.getElementById("cnt").textContent = cm.value.length; });
+
+/* ---------- Submit ---------- */
+async function submitRating(){
+  if(state.rating < 1) return;
+  if(!CONFIG.flow3Url || CONFIG.flow3Url.indexOf("PASTE") > -1){ alert("ยังไม่ได้ตั้งค่า flow3Url ในไฟล์"); return; }
+  const rawComment = document.getElementById("comment").value.trim();
+  // sanitize กัน JSON พังฝั่ง Flow (ตัด " \ และขึ้นบรรทัดใหม่)
+  const safeComment = rawComment.replace(/[\\"]/g, "'").replace(/[\r\n]+/g, " ");
+  const payload = {
+    ticketId: state.ticketId,
+    rating: state.rating,
+    comment: safeComment,
+    lineUserId: state.lineUserId
+  };
+  document.getElementById("overlay").style.display = "flex";
+  document.getElementById("submitBtn").disabled = true;
+  try{
+    const r = await fetch(CONFIG.flow3Url, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    document.getElementById("formView").classList.add("hidden");
+    document.getElementById("successView").classList.remove("hidden");
+    window.scrollTo(0,0);
+  }catch(e){
+    alert("ส่งคะแนนไม่สำเร็จ กรุณาลองใหม่");
+    document.getElementById("submitBtn").disabled = false;
+    console.error(e);
+  }finally{
+    document.getElementById("overlay").style.display = "none";
+  }
+}
+
+function closeLiff(){
+  try { if (window.liff && liff.isInClient && liff.isInClient()) { liff.closeWindow(); return; } } catch(e){}
+  history.length > 1 ? history.back() : window.close();
+}
+</script>
+</body>
+</html>
