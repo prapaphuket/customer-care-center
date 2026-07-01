@@ -93,7 +93,8 @@
       <p>ความคิดเห็นของคุณถูกบันทึกเรียบร้อยแล้ว<br/>เราจะนำไปพัฒนาการบริการต่อไป</p>
     </div>
     <div class="footer">
-      <button class="btn btn-outline" onclick="closeLiff()">ปิดหน้าต่าง</button>
+      <button id="closeBtn" class="btn btn-outline" onclick="closeLiff()">ปิดหน้าต่าง</button>
+      <p style="text-align:center;color:var(--muted);font-size:12px;margin:10px 0 0;">ปิดหน้านี้ได้โดยแตะ ✕ ที่มุมขวาบน</p>
     </div>
   </div>
 
@@ -146,6 +147,7 @@ window.addEventListener("load", async () => {
       const type = (t.ComplaintType&&t.ComplaintType.Value)||t.type||"";
       const tambon = (t.Tambon&&t.Tambon.Value)||t.tambon||"";
       document.getElementById("refMeta").textContent = [type, (tambon?("ต."+tambon):"")].filter(Boolean).join(" · ") || "เรื่องที่เสร็จสิ้นแล้ว";
+      if(Number(t.Rating||0) >= 1){ showAlreadyRated(Number(t.Rating)); return; }
     } else {
       document.getElementById("refMeta").textContent = "เรื่องที่เสร็จสิ้นแล้ว";
     }
@@ -200,9 +202,18 @@ async function submitRating(){
   }
 }
 
+function showAlreadyRated(stars){
+  document.getElementById("formView").classList.add("hidden");
+  const sv = document.getElementById("successView");
+  sv.querySelector("h2").textContent = "คุณให้คะแนนเรื่องนี้แล้ว";
+  sv.querySelector(".card.success p").innerHTML = "ขอบคุณสำหรับคะแนน " + (stars || "") + " ดาว 🙏<br/>ระบบรับความคิดเห็นของคุณไว้แล้ว";
+  sv.classList.remove("hidden");
+}
 function closeLiff(){
   try { if (window.liff && liff.isInClient && liff.isInClient()) { liff.closeWindow(); return; } } catch(e){}
-  history.length > 1 ? history.back() : window.close();
+  try { window.close(); } catch(e){}
+  const b = document.getElementById("closeBtn");
+  if(b){ b.textContent = "แตะ ✕ ที่มุมขวาบนเพื่อปิด"; }
 }
 </script>
 </body>
