@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>ติดตามสถานะ · Customer Care Center</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  /* ===== CI Tokens (อ้างอิงเดียวกับ feedback.html / Mockup) ===== */
+  :root{
+    --navy:#3C549A; --navy-dark:#324684; --aqua:#2BB7C4;
+    --border:#E4E8F1; --bg:#F4F6FB; --text:#1F2733; --muted:#7B879C;
+    --radius:12px; --ok:#1E9E6A;
+    color-scheme:light;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;font-family:"Noto Sans Thai","Tahoma","Helvetica Neue",sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.55;}
+  .wrap{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+  /* Header */
+  .appbar{background:var(--navy);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;}
+  .appbar h1{font-size:17px;margin:0;font-weight:600;}
+  .appbar .refresh{font-size:13px;color:#cdd6f2;background:none;border:none;cursor:pointer;}
+  /* Card */
+  .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);margin:14px 16px;padding:16px;}
+  .lead{margin:2px 0 12px;color:var(--muted);font-size:13px;}
+  /* Search */
+  .searchbar{display:flex;gap:8px;}
+  .searchbar input{flex:1;border:1px solid var(--border);border-radius:10px;padding:11px 12px;font:inherit;color:var(--text);background:#fff;outline:none;}
+  .searchbar input:focus{border-color:var(--navy);box-shadow:0 0 0 2px #EEF1FA;}
+  .searchbar button{border:none;background:var(--navy);color:#fff;border-radius:10px;padding:0 16px;font:inherit;font-weight:600;cursor:pointer;}
+  .searchbar button:active{background:var(--navy-dark);}
+  /* Section title */
+  .sec{margin:18px 16px 0;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.04em;display:flex;align-items:center;justify-content:space-between;}
+  /* Ticket card */
+  .tk{background:#fff;border:1px solid var(--border);border-radius:var(--radius);margin:10px 16px;padding:15px;}
+  .tk-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .tk-id{font-size:17px;font-weight:700;color:var(--navy);letter-spacing:.02em;}
+  .badge{display:inline-block;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600;white-space:nowrap;}
+  .b-recv{background:#FFF3E0;color:#B8741A;}
+  .b-prog{background:#EAF0FF;color:#3C549A;}
+  .b-fwd{background:#F1ECFA;color:#6B4FA0;}
+  .b-done{background:#E7F6EE;color:#1E9E6A;}
+  .tk-sub{margin:8px 0 2px;font-weight:600;font-size:15px;}
+  .tk-meta{color:var(--muted);font-size:13px;}
+  /* Timeline */
+  .tl{display:flex;margin-top:14px;}
+  .tl .stp{flex:1;text-align:center;position:relative;}
+  .tl .dot{width:18px;height:18px;border-radius:50%;background:#E4E8F1;margin:0 auto;border:2px solid #E4E8F1;position:relative;z-index:2;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;}
+  .tl .stp.on .dot{background:var(--navy);border-color:var(--navy);}
+  .tl .stp.on.done .dot{background:var(--ok);border-color:var(--ok);}
+  .tl .stp::before{content:"";position:absolute;top:8px;left:-50%;width:100%;height:2px;background:#E4E8F1;z-index:1;}
+  .tl .stp:first-child::before{display:none;}
+  .tl .stp.on::before{background:var(--navy);}
+  .tl .lbl{font-size:11px;color:var(--muted);margin-top:5px;}
+  .tl .stp.on .lbl{color:var(--text);font-weight:600;}
+  /* States */
+  .empty{text-align:center;color:var(--muted);padding:26px 16px;font-size:14px;}
+  .empty .ic{font-size:34px;display:block;margin-bottom:8px;}
+  .hidden{display:none!important;}
+  .footer{padding:10px 16px 22px;margin-top:auto;}
+  .btn{width:100%;border:none;border-radius:12px;padding:15px;font:inherit;font-size:16px;font-weight:600;cursor:pointer;}
+  .btn-outline{background:#fff;color:var(--navy);border:1px solid var(--navy);}
+  /* Loading overlay */
+  .overlay{position:fixed;inset:0;background:rgba(255,255,255,.8);display:none;align-items:center;justify-content:center;z-index:50;}
+  .spinner{width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="appbar">
+    <h1>ติดตามสถานะ</h1>
+    <button class="refresh" onclick="loadMine()">รีเฟรช</button>
+  </div>
+
+  <!-- Search -->
+  <div class="card">
+    <p class="lead">ค้นหาด้วยหมายเลขอ้างอิง (เช่น CC-2026-0007) หรือดูรายการของคุณด้านล่าง</p>
+    <div class="searchbar">
+      <input type="text" id="q" placeholder="กรอกหมายเลขอ้างอิง" autocomplete="off" />
+      <button onclick="searchTicket()">ค้นหา</button>
+    </div>
+  </div>
+
+  <!-- Search result -->
+  <div id="resultSec" class="hidden">
+    <div class="sec"><span>ผลการค้นหา</span><button class="refresh" style="color:var(--navy)" onclick="clearSearch()">ล้าง</button></div>
+    <div id="resultList"></div>
+  </div>
+
+  <!-- My tickets -->
+  <div id="mineSec">
+    <div class="sec"><span>เรื่องของฉัน</span></div>
+    <div id="mineList">
+      <div class="empty"><span class="ic">📋</span>กำลังโหลดรายการ...</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button class="btn btn-outline" onclick="closeLiff()">ปิดหน้าต่าง</button>
+  </div>
+
+</div>
+
+<div class="overlay" id="overlay"><div class="spinner"></div></div>
+
+<script>
+/* =======================================================================
+   ⚙️ ตั้งค่า — แก้ 2 ค่านี้ก่อนใช้งานจริง
+   ======================================================================= */
+const CONFIG = {
+  liffId:  "PASTE_LIFF_ID_TRACK",   // <-- LIFF ID ของ LIFF app "CCC Track"
+  flowUrl: "https://default54cf0b457b5b41b0bbebdddef5eae5.12.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c2175afe7e004e1e9546e5e7e4832f35/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=gIpO6mQowyxms-kQKNjp0ty99j2PYlQnh_zsDQf8ACU"  // <-- Trigger URL (Anyone/sig) ของ Power Automate Flow 2
+};
+
+let state = { lineUserId:"" };
+
+/* ---------- Status → ขั้น timeline + สีป้าย ---------- */
+const STEPS = ["รับเรื่อง","ดำเนินการ","ส่งต่อ","เสร็จสิ้น"];
+function stepIndex(s){
+  const i = STEPS.indexOf((s||"").trim());
+  return i < 0 ? 0 : i;
+}
+function badgeClass(s){
+  switch((s||"").trim()){
+    case "ดำเนินการ": return "b-prog";
+    case "ส่งต่อ":    return "b-fwd";
+    case "เสร็จสิ้น":  return "b-done";
+    default:          return "b-recv";
+  }
+}
+
+/* ---------- LIFF init ---------- */
+window.addEventListener("load", async () => {
+  try {
+    if (CONFIG.liffId && CONFIG.liffId.indexOf("PASTE") === -1) {
+      await liff.init({ liffId: CONFIG.liffId });
+      if (!liff.isLoggedIn()) { liff.login(); return; }
+      const p = await liff.getProfile();
+      state.lineUserId = p.userId || "";
+    }
+  } catch (e) { console.warn("LIFF init error:", e); }
+  loadMine();
+});
+
+/* ---------- โหลดเรื่องของฉัน ---------- */
+async function loadMine(){
+  const box = document.getElementById("mineList");
+  if(!configReady()){ box.innerHTML = noticeConfig(); return; }
+  if(!state.lineUserId){
+    box.innerHTML = '<div class="empty"><span class="ic">🔐</span>เปิดหน้านี้ผ่านแอป LINE เพื่อดูรายการของคุณ<br/>หรือใช้ช่องค้นหาด้านบน</div>';
+    return;
+  }
+  box.innerHTML = '<div class="empty"><span class="ic">⏳</span>กำลังโหลดรายการ...</div>';
+  try{
+    const items = await queryFlow({ lineUserId: state.lineUserId });
+    if(!items.length){
+      box.innerHTML = '<div class="empty"><span class="ic">🗂️</span>ยังไม่มีเรื่องที่คุณแจ้งไว้</div>';
+      return;
+    }
+    box.innerHTML = items.map(renderCard).join("");
+  }catch(e){
+    box.innerHTML = '<div class="empty"><span class="ic">⚠️</span>โหลดรายการไม่สำเร็จ ลองรีเฟรชอีกครั้ง</div>';
+    console.error(e);
+  }
+}
+
+/* ---------- ค้นหาด้วย Ticket ID ---------- */
+async function searchTicket(){
+  const q = document.getElementById("q").value.trim();
+  if(!q){ return; }
+  if(!configReady()){ alert("ยังไม่ได้ตั้งค่า flowUrl/liffId ในไฟล์"); return; }
+  document.getElementById("overlay").style.display = "flex";
+  try{
+    const items = await queryFlow({ ticketId: q.toUpperCase() });
+    const sec = document.getElementById("resultSec");
+    const list = document.getElementById("resultList");
+    sec.classList.remove("hidden");
+    list.innerHTML = items.length
+      ? items.map(renderCard).join("")
+      : '<div class="empty"><span class="ic">🔍</span>ไม่พบเรื่องหมายเลข '+escapeHtml(q)+'</div>';
+    sec.scrollIntoView({behavior:"smooth",block:"start"});
+  }catch(e){
+    alert("ค้นหาไม่สำเร็จ กรุณาลองใหม่");
+    console.error(e);
+  }finally{
+    document.getElementById("overlay").style.display = "none";
+  }
+}
+function clearSearch(){
+  document.getElementById("q").value = "";
+  document.getElementById("resultSec").classList.add("hidden");
+  document.getElementById("resultList").innerHTML = "";
+}
+
+/* ---------- เรียก Flow 2 ---------- */
+async function queryFlow(body){
+  const r = await fetch(CONFIG.flowUrl, {
+    method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body)
+  });
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  const data = await r.json();
+  // Flow ส่งกลับเป็น array; เผื่อกรณีห่อใน {value:[...]} หรือ object เดี่ยว
+  if(Array.isArray(data)) return data;
+  if(data && Array.isArray(data.value)) return data.value;
+  if(data && data.ticketId) return [data];
+  return [];
+}
+
+/* ---------- อ่านค่าฟิลด์ (รองรับ raw SharePoint + แบบ shaped) ---------- */
+function fv(x){ return (x && typeof x === "object" && "Value" in x) ? x.Value : x; }
+function pick(t){
+  return {
+    ticketId: t.ticketId || t.Title || "-",
+    status:   t.status   || fv(t.Status) || "รับเรื่อง",
+    type:     t.type     || fv(t.ComplaintType) || "",
+    subject:  t.subject  || t.Subject || "",
+    tambon:   t.tambon   || fv(t.Tambon) || "",
+    village:  t.village  || t.Village || "",
+    date:     t.date     || t.Created || t.CreatedDate || ""
+  };
+}
+
+/* ---------- การ์ดสถานะ ---------- */
+function renderCard(raw){
+  const t = pick(raw);
+  const status = t.status || "รับเรื่อง";
+  const idx = stepIndex(status);
+  const area = (t.village ? ("หมู่ " + String(t.village).replace(/[^0-9]/g,"")) : "") + (t.tambon ? (" ต." + t.tambon) : "");
+  const date = fmtDate(t.date);
+  const tl = STEPS.map((s,i) => {
+    const on = i <= idx ? " on" : "";
+    const done = (i === idx && status.trim() === "เสร็จสิ้น") ? " done" : "";
+    const mark = (i < idx || (status.trim()==="เสร็จสิ้น" && i<=idx)) ? "✓" : "";
+    return '<div class="stp'+on+done+'"><div class="dot">'+mark+'</div><div class="lbl">'+s+'</div></div>';
+  }).join("");
+  return ''
+    + '<div class="tk">'
+    +   '<div class="tk-top"><span class="tk-id">'+escapeHtml(t.ticketId||"-")+'</span>'
+    +     '<span class="badge '+badgeClass(status)+'">'+escapeHtml(status)+'</span></div>'
+    +   (t.subject ? '<div class="tk-sub">'+escapeHtml(t.subject)+'</div>' : '')
+    +   '<div class="tk-meta">'+escapeHtml([t.type, area].filter(Boolean).join(" · "))+(date?' · '+date:'')+'</div>'
+    +   '<div class="tl">'+tl+'</div>'
+    + '</div>';
+}
+
+/* ---------- helpers ---------- */
+function configReady(){
+  return CONFIG.flowUrl && CONFIG.flowUrl.indexOf("PASTE")===-1;
+}
+function noticeConfig(){
+  return '<div class="empty"><span class="ic">⚙️</span>ยังไม่ได้ตั้งค่า flowUrl (CONFIG.flowUrl)</div>';
+}
+function fmtDate(v){
+  if(!v) return "";
+  const d = new Date(v);
+  if(isNaN(d)) return String(v);
+  return d.toLocaleDateString("th-TH",{day:"2-digit",month:"short"}) + " " +
+         d.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"});
+}
+function escapeHtml(s){
+  return String(s==null?"":s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function closeLiff(){
+  if (window.liff && liff.isInClient && liff.isInClient()) { liff.closeWindow(); }
+  else { location.reload(); }
+}
+/* ค้นหาเมื่อกด Enter */
+document.getElementById("q").addEventListener("keydown", e => { if(e.key==="Enter") searchTicket(); });
+</script>
+</body>
+</html>
