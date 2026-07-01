@@ -129,9 +129,11 @@
       </select>
       <div class="err" id="errTambon">กรุณาเลือกตำบล</div>
 
-      <label class="f">หมู่บ้าน / หมู่ที่ <span class="req">*</span></label>
-      <input type="text" id="village" placeholder="เช่น หมู่ 3" maxlength="60" />
-      <div class="err" id="errVillage">กรุณากรอกหมู่บ้าน/หมู่ที่</div>
+      <label class="f">หมู่ที่ <span class="req">*</span></label>
+      <select id="village" disabled>
+        <option value="">— เลือกตำบลก่อน —</option>
+      </select>
+      <div class="err" id="errVillage">กรุณาเลือกหมู่ที่</div>
 
       <label class="f">ตำแหน่งที่เกิดเหตุ</label>
       <div class="gps">
@@ -219,6 +221,24 @@ document.getElementById("chips").addEventListener("click", (e) => {
   hideErr("errType");
 });
 
+/* ---------- Village dropdown (ตามตำบล) ---------- */
+const VILLAGES = {
+  "ไม้ขาว": ["หมู่ 1 - บ้านหมากปรก","หมู่ 2 - บ้านคอเอน","หมู่ 3 - บ้านสวนมะพร้าว","หมู่ 4 - บ้านไม้ขาว","หมู่ 5 - บ้านท่าฉัตรไชย","หมู่ 6 - บ้านบ่อไทร","หมู่ 7 - บ้านหยิด"],
+  "สาคู":   ["หมู่ 1 - บ้านในยาง","หมู่ 2 - บ้านในยาง","หมู่ 3 - บ้านสาคู","หมู่ 4 - บ้านในทอน","หมู่ 5 - บ้านบางม่าเหลา"]
+};
+document.getElementById("tambon").addEventListener("change", function(){
+  const vsel = document.getElementById("village");
+  const list = VILLAGES[this.value];
+  if(list){
+    vsel.innerHTML = '<option value="">— เลือกหมู่ที่ —</option>' + list.map(v=>'<option value="'+v+'">'+v+'</option>').join("");
+    vsel.disabled = false;
+  } else {
+    vsel.innerHTML = '<option value="">— เลือกตำบลก่อน —</option>';
+    vsel.disabled = true;
+  }
+  hideErr("errVillage");
+});
+
 /* ---------- Char counter ---------- */
 const desc = document.getElementById("description");
 desc.addEventListener("input", () => { document.getElementById("cnt").textContent = desc.value.length; });
@@ -268,8 +288,9 @@ function hideErr(id){ document.getElementById(id).style.display = "none"; }
 function clearForm(){
   state.complaintType=""; state.gps=""; state.photos=[];
   document.querySelectorAll("#chips .chip").forEach(x=>x.classList.remove("active"));
-  ["subject","description","village"].forEach(id=>document.getElementById(id).value="");
+  ["subject","description"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("tambon").value="";
+  const vsel=document.getElementById("village"); vsel.innerHTML='<option value="">— เลือกตำบลก่อน —</option>'; vsel.disabled=true;
   document.getElementById("cnt").textContent="0";
   document.getElementById("gpsLabel").textContent="ยังไม่ได้ระบุพิกัด";
   renderPhotos();
