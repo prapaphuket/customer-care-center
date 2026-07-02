@@ -258,24 +258,45 @@ function getGPS(){
   );
 }
 
-/* ---------- Photos (preview only) ---------- */
+/* ---------- Photos (บีบอัด + base64 สำหรับแนบ) ---------- */
 function addPhotos(ev){
   const files = Array.from(ev.target.files || []);
-  for (const f of files){
-    if (state.photos.length >= 3){ alert("แนบได้สูงสุด 3 รูป"); break; }
-    const url = URL.createObjectURL(f);
-    state.photos.push(url);
-  }
-  ev.target.value = "";
-  renderPhotos();
+  (async () => {
+    for (const f of files){
+      if (state.photos.length >= 3){ alert("แนบได้สูงสุด 3 รูป"); break; }
+      try { state.photos.push(await compressImage(f)); }
+      catch(e){ console.warn("compress fail", e); alert("ไม่สามารถประมวลผลรูปนี้ได้"); }
+    }
+    ev.target.value = "";
+    renderPhotos();
+  })();
+}
+function compressImage(file){
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 1024; let w = img.width, h = img.height;
+        if (w > h && w > max){ h = Math.round(h*max/w); w = max; }
+        else if (h >= w && h > max){ w = Math.round(w*max/h); h = max; }
+        const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+        cv.getContext("2d").drawImage(img, 0, 0, w, h);
+        const dataUrl = cv.toDataURL("image/jpeg", 0.7);
+        resolve({ url: dataUrl, name: "photo_" + Date.now() + "_" + Math.floor(Math.random()*1000) + ".jpg", contentBytes: dataUrl.split(",")[1] });
+      };
+      img.onerror = reject; img.src = fr.result;
+    };
+    fr.onerror = reject; fr.readAsDataURL(file);
+  });
 }
 function renderPhotos(){
   const box = document.getElementById("photos");
   box.querySelectorAll(".thumb-wrap").forEach(n => n.remove());
   const addBtn = box.querySelector(".addphoto");
-  state.photos.forEach((u,i) => {
+  state.photos.forEach((p,i) => {
     const w = document.createElement("div"); w.className = "thumb-wrap";
-    w.innerHTML = '<img src="'+u+'" class="thumb"/><button class="rm" onclick="rmPhoto('+i+')">×</button>';
+    w.innerHTML = '<img src="'+p.url+'" class="thumb"/><button class="rm" onclick="rmPhoto('+i+')">×</button>';
     box.insertBefore(w, addBtn);
   });
   addBtn.style.display = state.photos.length >= 3 ? "none" : "flex";
@@ -323,7 +344,8 @@ async function submitForm(){
     tambon: tambon,
     village: village,
     gpsLocation: state.gps,
-    photoUrls: "",                 // TODO: ต่อระบบอัปโหลดรูป (เฟสถัดไป)
+    photoUrls: "",
+    photos: state.photos.map(p => ({ Name: p.name, contentBytes: p.contentBytes })),
     lineUserId: state.lineUserId
   };
 
