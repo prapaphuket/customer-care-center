@@ -142,13 +142,37 @@
         <button type="button" onclick="getGPS()">ตำแหน่งปัจจุบัน</button>
       </div>
 
+      <label class="f">ชื่อ-นามสกุลผู้แจ้ง <span class="req">*</span></label>
+      <input type="text" id="contactName" maxlength="80" placeholder="ชื่อ-นามสกุล" />
+      <div class="err" id="errName">กรุณากรอกชื่อ-นามสกุล</div>
+
+      <label class="f">เบอร์โทรติดต่อกลับ <span class="req">*</span></label>
+      <input type="tel" id="contactPhone" maxlength="15" inputmode="numeric" placeholder="เช่น 0812345678" />
+      <div class="err" id="errPhone">กรุณากรอกเบอร์โทรให้ถูกต้อง (9–10 หลัก)</div>
+
       <label class="f">แนบรูปภาพ (ถ้ามี · สูงสุด 3 รูป)</label>
       <div class="photos" id="photos">
         <label class="addphoto"><span>+</span>เพิ่ม
           <input type="file" accept="image/*" id="photoInput" multiple hidden onchange="addPhotos(event)" />
         </label>
       </div>
-      <p class="hint">* การแนบรูปยังเป็นตัวอย่างหน้าจอ ระบบอัปโหลดไฟล์จะเปิดในเฟสถัดไป</p>
+      <p class="hint">* รองรับสูงสุด 3 รูป ระบบจะย่อขนาดให้อัตโนมัติ</p>
+
+      <details class="pdpa" style="margin:14px 0 4px;font-size:13px;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;background:#f9fafb;">
+        <summary style="cursor:pointer;color:#2563eb;font-weight:600;">นโยบายความเป็นส่วนตัว (PDPA) — แตะเพื่ออ่าน</summary>
+        <div style="margin-top:8px;color:#555;line-height:1.55;">
+          <p><b>[ชื่อหน่วยงาน/บริษัทผู้ควบคุมข้อมูล]</b> เก็บรวบรวมข้อมูลส่วนบุคคลของท่าน (ชื่อ-นามสกุล, เบอร์โทรศัพท์, LINE User ID, ตำแหน่งที่ตั้ง และรูปภาพที่แนบ) เพื่อวัตถุประสงค์ในการรับเรื่อง ตรวจสอบ ดำเนินการแก้ไข และติดต่อกลับเกี่ยวกับเรื่องที่ท่านแจ้งเท่านั้น</p>
+          <p><b>ฐานทางกฎหมาย:</b> เพื่อการดำเนินงานตามภารกิจ/สัญญาการให้บริการ และประโยชน์โดยชอบด้วยกฎหมายของผู้ควบคุมข้อมูล</p>
+          <p><b>ระยะเวลาจัดเก็บ:</b> ไม่เกิน [ระบุระยะเวลา เช่น 1 ปี] นับจากวันที่เรื่องเสร็จสิ้น จากนั้นจะลบหรือทำให้ไม่สามารถระบุตัวตนได้</p>
+          <p><b>สิทธิของท่าน:</b> ขอเข้าถึง แก้ไข ลบ คัดค้าน ระงับการใช้ข้อมูล และเพิกถอนความยินยอมได้ ติดต่อ [ช่องทางติดต่อ / อีเมลเจ้าหน้าที่คุ้มครองข้อมูล (DPO)]</p>
+          <p>เราจะไม่เปิดเผยข้อมูลของท่านต่อบุคคลภายนอก เว้นแต่เพื่อดำเนินการแก้ไขเรื่อง หรือเป็นไปตามที่กฎหมายกำหนด</p>
+        </div>
+      </details>
+      <label class="consent" style="display:flex;gap:8px;align-items:flex-start;margin:8px 0 2px;font-size:13px;line-height:1.45;">
+        <input type="checkbox" id="pdpaConsent" style="margin-top:3px;width:18px;height:18px;flex:none;" />
+        <span>ข้าพเจ้าได้อ่านและ<b>ยินยอม</b>ให้เก็บรวบรวมและใช้ข้อมูลส่วนบุคคลข้างต้น เพื่อการรับเรื่องและติดต่อกลับตามนโยบายความเป็นส่วนตัว <span class="req">*</span></span>
+      </label>
+      <div class="err" id="errConsent">กรุณายินยอมนโยบายความเป็นส่วนตัวก่อนส่งเรื่อง</div>
     </div>
 
     <div class="footer">
@@ -208,6 +232,8 @@ window.addEventListener("load", async () => {
       if (!liff.isLoggedIn()) { liff.login(); return; }
       const p = await liff.getProfile();
       state.lineUserId = p.userId || "";
+      const nameEl = document.getElementById("contactName");
+      if (nameEl && !nameEl.value) nameEl.value = p.displayName || "";
     }
   } catch (e) { console.warn("LIFF init error:", e); }
 });
@@ -309,7 +335,8 @@ function hideErr(id){ document.getElementById(id).style.display = "none"; }
 function clearForm(){
   state.complaintType=""; state.gps=""; state.photos=[];
   document.querySelectorAll("#chips .chip").forEach(x=>x.classList.remove("active"));
-  ["subject","description"].forEach(id=>document.getElementById(id).value="");
+  ["subject","description","contactName","contactPhone"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("pdpaConsent").checked=false;
   document.getElementById("tambon").value="";
   const vsel=document.getElementById("village"); vsel.innerHTML='<option value="">— เลือกตำบลก่อน —</option>'; vsel.disabled=true;
   document.getElementById("cnt").textContent="0";
@@ -323,6 +350,10 @@ async function submitForm(){
   const description = document.getElementById("description").value.trim();
   const tambon = document.getElementById("tambon").value;
   const village = document.getElementById("village").value.trim();
+  const contactName = document.getElementById("contactName").value.trim();
+  const contactPhone = document.getElementById("contactPhone").value.trim();
+  const phoneDigits = contactPhone.replace(/[^0-9]/g,"");
+  const pdpaConsent = document.getElementById("pdpaConsent").checked;
 
   let ok = true;
   if(!state.complaintType){ showErr("errType"); ok=false; }
@@ -330,6 +361,9 @@ async function submitForm(){
   if(!description){ showErr("errDesc"); ok=false; } else hideErr("errDesc");
   if(!tambon){ showErr("errTambon"); ok=false; } else hideErr("errTambon");
   if(!village){ showErr("errVillage"); ok=false; } else hideErr("errVillage");
+  if(!contactName){ showErr("errName"); ok=false; } else hideErr("errName");
+  if(phoneDigits.length < 9 || phoneDigits.length > 10){ showErr("errPhone"); ok=false; } else hideErr("errPhone");
+  if(!pdpaConsent){ showErr("errConsent"); ok=false; } else hideErr("errConsent");
   if(!ok) return;
 
   if(!CONFIG.flowUrl || CONFIG.flowUrl.indexOf("PASTE") > -1){
@@ -344,6 +378,9 @@ async function submitForm(){
     tambon: tambon,
     village: village,
     gpsLocation: state.gps,
+    contactName: contactName,
+    contactPhone: contactPhone,
+    pdpaConsent: pdpaConsent ? "ยินยอม" : "",
     photoUrls: "",
     photos: state.photos.map(p => ({ Name: p.name, contentBytes: p.contentBytes })),
     lineUserId: state.lineUserId
