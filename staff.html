@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<title>เปิดใบงาน (เจ้าหน้าที่) · Customer Care Center</title>
+<style>
+  :root{
+    --navy:#3C549A; --navy-dark:#324684; --aqua:#2BB7C4;
+    --border:#E4E8F1; --bg:#F4F6FB; --text:#1F2733; --muted:#7B879C;
+    --radius:12px; --ok:#1E9E6A; color-scheme:light;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;font-family:"Noto Sans Thai","Tahoma","Helvetica Neue",sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.55;}
+  .wrap{max-width:560px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+  .appbar{background:var(--navy);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;}
+  .appbar h1{font-size:17px;margin:0;font-weight:600;}
+  .appbar .clear{font-size:13px;color:#cdd6f2;background:none;border:none;cursor:pointer;}
+  .step{padding:10px 18px 0;color:var(--muted);font-size:12px;letter-spacing:.08em;}
+  .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);margin:14px 16px;padding:16px;}
+  .lead{margin:2px 0 14px;color:var(--muted);font-size:13px;}
+  label.f{display:block;font-weight:600;margin:14px 0 6px;font-size:14px;}
+  label.f .req{color:#E0563B;}
+  .chips{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .chips.c3{grid-template-columns:1fr 1fr 1fr;}
+  .chip{border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;cursor:pointer;background:#fff;font-size:14px;transition:.15s;}
+  .chip.active{border-color:var(--navy);background:#EEF1FA;color:var(--navy);font-weight:600;box-shadow:0 0 0 1px var(--navy) inset;}
+  input[type=text],input[type=tel],textarea,select{width:100%;border:1px solid var(--border);border-radius:10px;padding:11px 12px;font:inherit;color:var(--text);background:#fff;outline:none;}
+  input:focus,textarea:focus,select:focus{border-color:var(--navy);box-shadow:0 0 0 2px #EEF1FA;}
+  textarea{resize:none;height:104px;}
+  .counter{text-align:right;color:var(--muted);font-size:12px;margin-top:4px;}
+  .photos{display:flex;gap:10px;flex-wrap:wrap;}
+  .thumb{width:74px;height:74px;border-radius:10px;object-fit:cover;border:1px solid var(--border);}
+  .thumb-wrap{position:relative;}
+  .thumb-wrap .rm{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#E0563B;color:#fff;border:none;font-size:12px;cursor:pointer;line-height:1;}
+  .addphoto{width:74px;height:74px;border:1px dashed var(--border);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);cursor:pointer;font-size:12px;background:#fff;}
+  .addphoto span{font-size:22px;line-height:1;color:var(--navy);}
+  .hint{color:var(--muted);font-size:12px;margin:6px 0 0;}
+  .footer{padding:8px 16px 20px;margin-top:auto;}
+  .btn{width:100%;border:none;border-radius:12px;padding:15px;font:inherit;font-size:16px;font-weight:600;cursor:pointer;}
+  .btn-primary{background:var(--navy);color:#fff;}
+  .btn-primary:active{background:var(--navy-dark);}
+  .btn-primary:disabled{opacity:.55;cursor:not-allowed;}
+  .err{color:#E0563B;font-size:12px;margin-top:5px;display:none;}
+  .hidden{display:none!important;}
+  .success-ic{width:70px;height:70px;border-radius:50%;background:#E7F6EE;color:var(--ok);display:flex;align-items:center;justify-content:center;font-size:36px;margin:8px auto 14px;}
+  .success h2{text-align:center;margin:0 0 6px;font-size:20px;}
+  .success p.sub{text-align:center;color:var(--muted);font-size:13px;margin:0 0 16px;}
+  .ticket{background:#EEF1FA;border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;}
+  .ticket .tid{font-size:26px;font-weight:700;color:var(--navy);letter-spacing:.02em;}
+  .ticket .badge{display:inline-block;margin-top:6px;background:#FFF3E0;color:#B8741A;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600;}
+  .kv{display:flex;justify-content:space-between;padding:9px 0;border-top:1px solid var(--border);font-size:14px;}
+  .kv:first-of-type{border-top:none;}
+  .kv .k{color:var(--muted);}
+  .note{background:#F0FAFB;border:1px solid #CDEEF1;border-radius:10px;padding:10px 12px;font-size:12px;color:#2a6b72;margin-top:14px;}
+  .staffbadge{display:inline-block;background:#FFF3E0;color:#B8741A;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:.05em;}
+  .overlay{position:fixed;inset:0;background:rgba(255,255,255,.8);display:none;align-items:center;justify-content:center;z-index:50;}
+  .spinner{width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== FORM VIEW ===== -->
+  <div id="formView">
+    <div class="appbar">
+      <h1>เปิดใบงาน <span class="staffbadge">STAFF</span></h1>
+      <button class="clear" onclick="clearForm()">ล้าง</button>
+    </div>
+    <div class="step">สำหรับเจ้าหน้าที่ · รับเรื่องทางโทรศัพท์ / เคาน์เตอร์ / อีเมล</div>
+
+    <div class="card">
+      <p class="lead">กรอกข้อมูลแทนลูกค้า ระบบจะออกหมายเลขอ้างอิง CC- ให้อัตโนมัติ</p>
+
+      <label class="f">ช่องทางรับเรื่อง <span class="req">*</span></label>
+      <div class="chips c3" id="channelChips">
+        <div class="chip" data-v="โทรศัพท์">📞 โทรศัพท์</div>
+        <div class="chip" data-v="เคาน์เตอร์">🏢 เคาน์เตอร์</div>
+        <div class="chip" data-v="อีเมล">✉️ อีเมล</div>
+      </div>
+      <div class="err" id="errChannel">กรุณาเลือกช่องทางรับเรื่อง</div>
+
+      <label class="f">ประเภทบริการ <span class="req">*</span></label>
+      <select id="serviceType">
+        <option value="feedback" selected>ร้องเรียน / แจ้งปัญหา</option>
+        <option value="repair">แจ้งซ่อม</option>
+        <option value="request">ขอใช้น้ำ</option>
+      </select>
+
+      <label class="f">ประเภทเรื่อง <span class="req">*</span></label>
+      <div class="chips" id="chips">
+        <div class="chip" data-v="คุณภาพน้ำ">คุณภาพน้ำ</div>
+        <div class="chip" data-v="ท่อรั่ว/แตก">ท่อรั่ว / แตก</div>
+        <div class="chip" data-v="น้ำไม่ไหล">น้ำไม่ไหล</div>
+        <div class="chip" data-v="อื่น ๆ">อื่น ๆ</div>
+      </div>
+      <div class="err" id="errType">กรุณาเลือกประเภทเรื่อง</div>
+
+      <label class="f">หัวข้อเรื่อง <span class="req">*</span></label>
+      <input type="text" id="subject" placeholder="เช่น น้ำขุ่นมีตะกอน" maxlength="120" />
+      <div class="err" id="errSubject">กรุณากรอกหัวข้อเรื่อง</div>
+
+      <label class="f">รายละเอียด <span class="req">*</span></label>
+      <textarea id="description" maxlength="500" placeholder="รายละเอียดที่ลูกค้าแจ้ง..."></textarea>
+      <div class="counter"><span id="cnt">0</span> / 500</div>
+      <div class="err" id="errDesc">กรุณากรอกรายละเอียด</div>
+
+      <label class="f">ตำบล <span class="req">*</span></label>
+      <select id="tambon">
+        <option value="">— เลือกตำบล —</option>
+        <option value="ไม้ขาว">ไม้ขาว</option>
+        <option value="สาคู">สาคู</option>
+      </select>
+      <div class="err" id="errTambon">กรุณาเลือกตำบล</div>
+
+      <label class="f">หมู่ที่ <span class="req">*</span></label>
+      <select id="village" disabled>
+        <option value="">— เลือกตำบลก่อน —</option>
+      </select>
+      <div class="err" id="errVillage">กรุณาเลือกหมู่ที่</div>
+
+      <label class="f">ชื่อ-นามสกุลลูกค้า <span class="req">*</span></label>
+      <input type="text" id="contactName" maxlength="80" placeholder="ชื่อ-นามสกุล" />
+      <div class="err" id="errName">กรุณากรอกชื่อ-นามสกุล</div>
+
+      <label class="f">เบอร์โทรลูกค้า <span class="req">*</span></label>
+      <input type="tel" id="contactPhone" maxlength="15" inputmode="numeric" placeholder="เช่น 0812345678" />
+      <div class="err" id="errPhone">กรุณากรอกเบอร์โทรให้ถูกต้อง (9–10 หลัก)</div>
+
+      <label class="f">แนบรูปภาพ (ถ้ามี · สูงสุด 3 รูป)</label>
+      <div class="photos" id="photos">
+        <label class="addphoto"><span>+</span>เพิ่ม
+          <input type="file" accept="image/*" id="photoInput" multiple hidden onchange="addPhotos(event)" />
+        </label>
+      </div>
+      <p class="hint">* ระบบจะย่อขนาดรูปให้อัตโนมัติ</p>
+
+      <label class="consent" style="display:flex;gap:8px;align-items:flex-start;margin:14px 0 2px;font-size:13px;line-height:1.45;">
+        <input type="checkbox" id="pdpaConsent" style="margin-top:3px;width:18px;height:18px;flex:none;" />
+        <span>เจ้าหน้าที่ได้แจ้งนโยบายความเป็นส่วนตัว (PDPA) และลูกค้า<b>ยินยอม</b>ให้เก็บข้อมูลเพื่อการรับเรื่องและติดต่อกลับแล้ว <span class="req">*</span></span>
+      </label>
+      <div class="err" id="errConsent">กรุณายืนยันว่าลูกค้าได้ยินยอมแล้ว</div>
+    </div>
+
+    <div class="footer">
+      <button class="btn btn-primary" id="submitBtn" onclick="submitForm()">เปิดใบงาน</button>
+    </div>
+  </div>
+
+  <!-- ===== SUCCESS VIEW ===== -->
+  <div id="successView" class="hidden">
+    <div class="appbar"><h1>เปิดใบงานสำเร็จ</h1></div>
+    <div class="card success">
+      <div class="success-ic">✓</div>
+      <h2>เปิดใบงานสำเร็จแล้ว</h2>
+      <p class="sub">กรุณาแจ้งหมายเลขอ้างอิงให้ลูกค้าทราบ</p>
+
+      <div class="ticket">
+        <div style="color:var(--muted);font-size:12px;">หมายเลขอ้างอิง</div>
+        <div class="tid" id="resTicket">CC-0000-00-0000</div>
+        <div class="badge" id="resStatus">รับเรื่องแล้ว</div>
+      </div>
+
+      <div style="margin-top:14px;">
+        <div class="kv"><span class="k">ช่องทาง</span><span id="resChannel">-</span></div>
+        <div class="kv"><span class="k">ประเภท</span><span id="resType">-</span></div>
+        <div class="kv"><span class="k">วันที่รับเรื่อง</span><span id="resDate">-</span></div>
+        <div class="kv"><span class="k">หัวข้อ</span><span id="resSubject">-</span></div>
+        <div class="kv"><span class="k">พื้นที่</span><span id="resArea">-</span></div>
+        <div class="kv"><span class="k">ลูกค้า</span><span id="resName">-</span></div>
+      </div>
+
+      <div class="note">💡 ลูกค้าติดตามสถานะได้โดยแจ้งหมายเลขอ้างอิงนี้ (ทางโทรศัพท์/เคาน์เตอร์) — การแจ้งเตือนอัตโนมัติทาง LINE มีเฉพาะเรื่องที่แจ้งผ่าน LINE OA</div>
+    </div>
+    <div class="footer">
+      <button class="btn btn-primary" onclick="location.reload()">เปิดใบงานใหม่</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="overlay" id="overlay"><div class="spinner"></div></div>
+
+<script>
+/* ⚙️ ตั้งค่า — flowUrl เดียวกับ feedback.html (Flow 1) */
+const CONFIG = {
+  flowUrl: "https://default54cf0b457b5b41b0bbebdddef5eae5.12.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f149e98bf725428c82f0ce14a6ed7292/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HNm8D_a5M5sZlr_D4HS6jhKhZItBktMqpiyOFlhYZDo"
+};
+
+let state = { channel:"", complaintType:"", photos:[] };
+
+/* ---------- Chips ---------- */
+document.getElementById("channelChips").addEventListener("click", (e) => {
+  const c = e.target.closest(".chip"); if (!c) return;
+  document.querySelectorAll("#channelChips .chip").forEach(x => x.classList.remove("active"));
+  c.classList.add("active");
+  state.channel = c.dataset.v;
+  hideErr("errChannel");
+});
+document.getElementById("chips").addEventListener("click", (e) => {
+  const c = e.target.closest(".chip"); if (!c) return;
+  document.querySelectorAll("#chips .chip").forEach(x => x.classList.remove("active"));
+  c.classList.add("active");
+  state.complaintType = c.dataset.v;
+  hideErr("errType");
+});
+
+/* ---------- Village dropdown ---------- */
+const VILLAGES = {
+  "ไม้ขาว": ["หมู่ 1 - บ้านหมากปรก","หมู่ 2 - บ้านคอเอน","หมู่ 3 - บ้านสวนมะพร้าว","หมู่ 4 - บ้านไม้ขาว","หมู่ 5 - บ้านท่าฉัตรไชย","หมู่ 6 - บ้านบ่อไทร","หมู่ 7 - บ้านหยิด"],
+  "สาคู":   ["หมู่ 1 - บ้านในยาง","หมู่ 2 - บ้านในยาง","หมู่ 3 - บ้านสาคู","หมู่ 4 - บ้านในทอน","หมู่ 5 - บ้านบางม่าเหลา"]
+};
+document.getElementById("tambon").addEventListener("change", function(){
+  const vsel = document.getElementById("village");
+  const list = VILLAGES[this.value];
+  if(list){
+    vsel.innerHTML = '<option value="">— เลือกหมู่ที่ —</option>' + list.map(v=>'<option value="'+v+'">'+v+'</option>').join("");
+    vsel.disabled = false;
+  } else {
+    vsel.innerHTML = '<option value="">— เลือกตำบลก่อน —</option>';
+    vsel.disabled = true;
+  }
+  hideErr("errVillage");
+});
+
+/* ---------- Char counter ---------- */
+const desc = document.getElementById("description");
+desc.addEventListener("input", () => { document.getElementById("cnt").textContent = desc.value.length; });
+
+/* ---------- Photos ---------- */
+function addPhotos(ev){
+  const files = Array.from(ev.target.files || []);
+  (async () => {
+    for (const f of files){
+      if (state.photos.length >= 3){ alert("แนบได้สูงสุด 3 รูป"); break; }
+      try { state.photos.push(await compressImage(f)); }
+      catch(e){ console.warn("compress fail", e); alert("ไม่สามารถประมวลผลรูปนี้ได้"); }
+    }
+    ev.target.value = "";
+    renderPhotos();
+  })();
+}
+function compressImage(file){
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 1024; let w = img.width, h = img.height;
+        if (w > h && w > max){ h = Math.round(h*max/w); w = max; }
+        else if (h >= w && h > max){ w = Math.round(w*max/h); h = max; }
+        const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+        cv.getContext("2d").drawImage(img, 0, 0, w, h);
+        const dataUrl = cv.toDataURL("image/jpeg", 0.7);
+        resolve({ url: dataUrl, name: "photo_" + Date.now() + "_" + Math.floor(Math.random()*1000) + ".jpg", contentBytes: dataUrl.split(",")[1] });
+      };
+      img.onerror = reject; img.src = fr.result;
+    };
+    fr.onerror = reject; fr.readAsDataURL(file);
+  });
+}
+function renderPhotos(){
+  const box = document.getElementById("photos");
+  box.querySelectorAll(".thumb-wrap").forEach(n => n.remove());
+  const addBtn = box.querySelector(".addphoto");
+  state.photos.forEach((p,i) => {
+    const w = document.createElement("div"); w.className = "thumb-wrap";
+    w.innerHTML = '<img src="'+p.url+'" class="thumb"/><button class="rm" onclick="rmPhoto('+i+')">×</button>';
+    box.insertBefore(w, addBtn);
+  });
+  addBtn.style.display = state.photos.length >= 3 ? "none" : "flex";
+}
+function rmPhoto(i){ state.photos.splice(i,1); renderPhotos(); }
+
+/* ---------- Helpers ---------- */
+function showErr(id){ document.getElementById(id).style.display = "block"; }
+function hideErr(id){ document.getElementById(id).style.display = "none"; }
+function clearForm(){
+  state.channel=""; state.complaintType=""; state.photos=[];
+  document.querySelectorAll("#channelChips .chip,#chips .chip").forEach(x=>x.classList.remove("active"));
+  ["subject","description","contactName","contactPhone"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("pdpaConsent").checked=false;
+  document.getElementById("serviceType").value="feedback";
+  document.getElementById("tambon").value="";
+  const vsel=document.getElementById("village"); vsel.innerHTML='<option value="">— เลือกตำบลก่อน —</option>'; vsel.disabled=true;
+  document.getElementById("cnt").textContent="0";
+  renderPhotos();
+}
+
+/* ---------- Submit ---------- */
+async function submitForm(){
+  const subject = document.getElementById("subject").value.trim();
+  const description = document.getElementById("description").value.trim();
+  const tambon = document.getElementById("tambon").value;
+  const village = document.getElementById("village").value.trim();
+  const contactName = document.getElementById("contactName").value.trim();
+  const contactPhone = document.getElementById("contactPhone").value.trim();
+  const phoneDigits = contactPhone.replace(/[^0-9]/g,"");
+  const pdpaConsent = document.getElementById("pdpaConsent").checked;
+
+  let ok = true;
+  if(!state.channel){ showErr("errChannel"); ok=false; }
+  if(!state.complaintType){ showErr("errType"); ok=false; }
+  if(!subject){ showErr("errSubject"); ok=false; } else hideErr("errSubject");
+  if(!description){ showErr("errDesc"); ok=false; } else hideErr("errDesc");
+  if(!tambon){ showErr("errTambon"); ok=false; } else hideErr("errTambon");
+  if(!village){ showErr("errVillage"); ok=false; } else hideErr("errVillage");
+  if(!contactName){ showErr("errName"); ok=false; } else hideErr("errName");
+  if(phoneDigits.length < 9 || phoneDigits.length > 10){ showErr("errPhone"); ok=false; } else hideErr("errPhone");
+  if(!pdpaConsent){ showErr("errConsent"); ok=false; } else hideErr("errConsent");
+  if(!ok) return;
+
+  const payload = {
+    serviceType: document.getElementById("serviceType").value,
+    complaintType: state.complaintType,
+    subject: subject,
+    description: description,
+    tambon: tambon,
+    village: village,
+    gpsLocation: "",
+    contactName: contactName,
+    contactPhone: contactPhone,
+    pdpaConsent: pdpaConsent ? "ยินยอม (แจ้งผ่านเจ้าหน้าที่)" : "",
+    photoUrls: "",
+    photos: state.photos.map(p => ({ Name: p.name, contentBytes: p.contentBytes })),
+    lineUserId: "",
+    channel: state.channel
+  };
+
+  document.getElementById("overlay").style.display = "flex";
+  document.getElementById("submitBtn").disabled = true;
+  try{
+    const r = await fetch(CONFIG.flowUrl, {
+      method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload)
+    });
+    const data = await r.json();
+    if(!r.ok || !data.ticketId) throw new Error("ส่งไม่สำเร็จ");
+    showSuccess(data, payload);
+  }catch(e){
+    alert("เกิดข้อผิดพลาดในการเปิดใบงาน กรุณาลองใหม่อีกครั้ง");
+    console.error(e);
+  }finally{
+    document.getElementById("overlay").style.display = "none";
+    document.getElementById("submitBtn").disabled = false;
+  }
+}
+
+function showSuccess(data, payload){
+  document.getElementById("resTicket").textContent  = data.ticketId;
+  document.getElementById("resStatus").textContent  = data.status || "รับเรื่องแล้ว";
+  document.getElementById("resChannel").textContent = payload.channel;
+  document.getElementById("resType").textContent    = payload.complaintType;
+  document.getElementById("resSubject").textContent = payload.subject;
+  document.getElementById("resName").textContent    = payload.contactName;
+  document.getElementById("resArea").textContent    = "หมู่ " + payload.village.replace(/[^0-9]/g,"") + " ต." + payload.tambon;
+  const d = new Date();
+  document.getElementById("resDate").textContent =
+    d.toLocaleDateString("th-TH",{day:"2-digit",month:"short"}) + " " +
+    d.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"});
+  document.getElementById("formView").classList.add("hidden");
+  document.getElementById("successView").classList.remove("hidden");
+  window.scrollTo(0,0);
+}
+</script>
+</body>
+</html>
