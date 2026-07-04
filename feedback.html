@@ -104,12 +104,15 @@
       <p class="lead">เจ้าหน้าที่จะดำเนินการตรวจสอบและตอบกลับโดยเร็วที่สุด</p>
 
       <label class="f">ประเภทเรื่อง <span class="req">*</span></label>
-      <div class="chips" id="chips">
-        <div class="chip" data-v="คุณภาพน้ำ">คุณภาพน้ำ</div>
-        <div class="chip" data-v="ท่อรั่ว/แตก">ท่อรั่ว / แตก</div>
-        <div class="chip" data-v="น้ำไม่ไหล">น้ำไม่ไหล</div>
-        <div class="chip" data-v="อื่น ๆ">อื่น ๆ</div>
-      </div>
+      <select id="complaintType">
+        <option value="">— เลือกประเภทเรื่อง —</option>
+        <option value="คุณภาพน้ำ">คุณภาพน้ำ</option>
+        <option value="ท่อรั่ว/แตก">ท่อรั่ว / แตก</option>
+        <option value="น้ำไม่ไหล">น้ำไม่ไหล / น้ำไหลอ่อน</option>
+        <option value="ชำระค่าน้ำ">ชำระค่าน้ำ / ใบแจ้งหนี้</option>
+        <option value="บริการ">บริการ / พนักงาน</option>
+        <option value="อื่นๆ">อื่นๆ</option>
+      </select>
       <div class="err" id="errType">กรุณาเลือกประเภทเรื่อง</div>
 
       <label class="f">หัวข้อเรื่อง <span class="req">*</span></label>
@@ -161,10 +164,10 @@
       <details class="pdpa" style="margin:14px 0 4px;font-size:13px;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;background:#f9fafb;">
         <summary style="cursor:pointer;color:#2563eb;font-weight:600;">นโยบายความเป็นส่วนตัว (PDPA) — แตะเพื่ออ่าน</summary>
         <div style="margin-top:8px;color:#555;line-height:1.55;">
-          <p><b>[ชื่อหน่วยงาน/บริษัทผู้ควบคุมข้อมูล]</b> เก็บรวบรวมข้อมูลส่วนบุคคลของท่าน (ชื่อ-นามสกุล, เบอร์โทรศัพท์, LINE User ID, ตำแหน่งที่ตั้ง และรูปภาพที่แนบ) เพื่อวัตถุประสงค์ในการรับเรื่อง ตรวจสอบ ดำเนินการแก้ไข และติดต่อกลับเกี่ยวกับเรื่องที่ท่านแจ้งเท่านั้น</p>
+          <p><b>บริษัท ไฮโดรเอ็นเตอร์ไพร์ส แอนด์ อะควอดีซายน์ จำกัด</b> เก็บรวบรวมข้อมูลส่วนบุคคลของท่าน (ชื่อ-นามสกุล, เบอร์โทรศัพท์, LINE User ID, ตำแหน่งที่ตั้ง และรูปภาพที่แนบ) เพื่อวัตถุประสงค์ในการรับเรื่อง ตรวจสอบ ดำเนินการแก้ไข และติดต่อกลับเกี่ยวกับเรื่องที่ท่านแจ้งเท่านั้น</p>
           <p><b>ฐานทางกฎหมาย:</b> เพื่อการดำเนินงานตามภารกิจ/สัญญาการให้บริการ และประโยชน์โดยชอบด้วยกฎหมายของผู้ควบคุมข้อมูล</p>
-          <p><b>ระยะเวลาจัดเก็บ:</b> ไม่เกิน [ระบุระยะเวลา เช่น 1 ปี] นับจากวันที่เรื่องเสร็จสิ้น จากนั้นจะลบหรือทำให้ไม่สามารถระบุตัวตนได้</p>
-          <p><b>สิทธิของท่าน:</b> ขอเข้าถึง แก้ไข ลบ คัดค้าน ระงับการใช้ข้อมูล และเพิกถอนความยินยอมได้ ติดต่อ [ช่องทางติดต่อ / อีเมลเจ้าหน้าที่คุ้มครองข้อมูล (DPO)]</p>
+          <p><b>ระยะเวลาจัดเก็บ:</b> ไม่เกิน 1 ปี นับจากวันที่เรื่องเสร็จสิ้น จากนั้นจะลบหรือทำให้ไม่สามารถระบุตัวตนได้</p>
+          <p><b>สิทธิของท่าน:</b> ขอเข้าถึง แก้ไข ลบ คัดค้าน ระงับการใช้ข้อมูล และเพิกถอนความยินยอมได้ ติดต่อ info@aeu.co.th (เจ้าหน้าที่คุ้มครองข้อมูลส่วนบุคคล / DPO)</p>
           <p>เราจะไม่เปิดเผยข้อมูลของท่านต่อบุคคลภายนอก เว้นแต่เพื่อดำเนินการแก้ไขเรื่อง หรือเป็นไปตามที่กฎหมายกำหนด</p>
         </div>
       </details>
@@ -239,12 +242,9 @@ window.addEventListener("load", async () => {
 });
 
 /* ---------- Chips ---------- */
-document.getElementById("chips").addEventListener("click", (e) => {
-  const c = e.target.closest(".chip"); if (!c) return;
-  document.querySelectorAll("#chips .chip").forEach(x => x.classList.remove("active"));
-  c.classList.add("active");
-  state.complaintType = c.dataset.v;
-  hideErr("errType");
+document.getElementById("complaintType").addEventListener("change", (e) => {
+  state.complaintType = e.target.value;
+  if (state.complaintType) hideErr("errType");
 });
 
 /* ---------- Village dropdown (ตามตำบล) ---------- */
@@ -334,7 +334,7 @@ function showErr(id){ document.getElementById(id).style.display = "block"; }
 function hideErr(id){ document.getElementById(id).style.display = "none"; }
 function clearForm(){
   state.complaintType=""; state.gps=""; state.photos=[];
-  document.querySelectorAll("#chips .chip").forEach(x=>x.classList.remove("active"));
+  document.getElementById("complaintType").value="";
   ["subject","description","contactName","contactPhone"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("pdpaConsent").checked=false;
   document.getElementById("tambon").value="";

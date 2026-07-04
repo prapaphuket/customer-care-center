@@ -90,12 +90,15 @@
       </select>
 
       <label class="f">ประเภทเรื่อง <span class="req">*</span></label>
-      <div class="chips" id="chips">
-        <div class="chip" data-v="คุณภาพน้ำ">คุณภาพน้ำ</div>
-        <div class="chip" data-v="ท่อรั่ว/แตก">ท่อรั่ว / แตก</div>
-        <div class="chip" data-v="น้ำไม่ไหล">น้ำไม่ไหล</div>
-        <div class="chip" data-v="อื่น ๆ">อื่น ๆ</div>
-      </div>
+      <select id="complaintType">
+        <option value="">— เลือกประเภทเรื่อง —</option>
+        <option value="คุณภาพน้ำ">คุณภาพน้ำ</option>
+        <option value="ท่อรั่ว/แตก">ท่อรั่ว / แตก</option>
+        <option value="น้ำไม่ไหล">น้ำไม่ไหล / น้ำไหลอ่อน</option>
+        <option value="ชำระค่าน้ำ">ชำระค่าน้ำ / ใบแจ้งหนี้</option>
+        <option value="บริการ">บริการ / พนักงาน</option>
+        <option value="อื่นๆ">อื่นๆ</option>
+      </select>
       <div class="err" id="errType">กรุณาเลือกประเภทเรื่อง</div>
 
       <label class="f">หัวข้อเรื่อง <span class="req">*</span></label>
@@ -199,12 +202,9 @@ document.getElementById("channelChips").addEventListener("click", (e) => {
   state.channel = c.dataset.v;
   hideErr("errChannel");
 });
-document.getElementById("chips").addEventListener("click", (e) => {
-  const c = e.target.closest(".chip"); if (!c) return;
-  document.querySelectorAll("#chips .chip").forEach(x => x.classList.remove("active"));
-  c.classList.add("active");
-  state.complaintType = c.dataset.v;
-  hideErr("errType");
+document.getElementById("complaintType").addEventListener("change", (e) => {
+  state.complaintType = e.target.value;
+  if (state.complaintType) hideErr("errType");
 });
 
 /* ---------- Village dropdown ---------- */
@@ -279,7 +279,8 @@ function showErr(id){ document.getElementById(id).style.display = "block"; }
 function hideErr(id){ document.getElementById(id).style.display = "none"; }
 function clearForm(){
   state.channel=""; state.complaintType=""; state.photos=[];
-  document.querySelectorAll("#channelChips .chip,#chips .chip").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll("#channelChips .chip").forEach(x=>x.classList.remove("active"));
+  document.getElementById("complaintType").value="";
   ["subject","description","contactName","contactPhone"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("pdpaConsent").checked=false;
   document.getElementById("serviceType").value="feedback";
