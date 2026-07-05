@@ -32,6 +32,12 @@
   .star.on{color:var(--star);}
   .star:active{transform:scale(1.15);}
   .ratingText{text-align:center;color:var(--muted);font-size:13px;min-height:20px;margin-bottom:10px;}
+  /* Sub-ratings (รายด้าน) */
+  .subrate-group{border-top:1px solid var(--border);margin-top:12px;padding-top:6px;}
+  .subrate{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;}
+  .subrate .lbl{font-size:14px;font-weight:500;color:var(--text);}
+  .subrate .stars-sm{display:flex;gap:4px;}
+  .subrate .stars-sm .star{font-size:26px;}
   label.f{display:block;font-weight:600;margin:14px 0 6px;font-size:14px;}
   textarea{width:100%;border:1px solid var(--border);border-radius:10px;padding:11px 12px;font:inherit;color:var(--text);background:#fff;outline:none;resize:none;height:96px;}
   textarea:focus{border-color:var(--navy);box-shadow:0 0 0 2px #EEF1FA;}
@@ -78,6 +84,28 @@
       </div>
       <div class="ratingText" id="ratingText">แตะดาวเพื่อให้คะแนน</div>
 
+      <!-- คะแนนรายด้าน (ถ้ามี) -->
+      <div class="subrate-group">
+        <div class="subrate">
+          <span class="lbl">ความรวดเร็ว</span>
+          <div class="stars-sm" data-key="speed">
+            <span class="star" data-v="1">★</span><span class="star" data-v="2">★</span><span class="star" data-v="3">★</span><span class="star" data-v="4">★</span><span class="star" data-v="5">★</span>
+          </div>
+        </div>
+        <div class="subrate">
+          <span class="lbl">ความสุภาพของเจ้าหน้าที่</span>
+          <div class="stars-sm" data-key="politeness">
+            <span class="star" data-v="1">★</span><span class="star" data-v="2">★</span><span class="star" data-v="3">★</span><span class="star" data-v="4">★</span><span class="star" data-v="5">★</span>
+          </div>
+        </div>
+        <div class="subrate">
+          <span class="lbl">การแก้ปัญหา</span>
+          <div class="stars-sm" data-key="resolution">
+            <span class="star" data-v="1">★</span><span class="star" data-v="2">★</span><span class="star" data-v="3">★</span><span class="star" data-v="4">★</span><span class="star" data-v="5">★</span>
+          </div>
+        </div>
+      </div>
+
       <label class="f">ความคิดเห็นเพิ่มเติม (ถ้ามี)</label>
       <textarea id="comment" maxlength="500" placeholder="เล่าประสบการณ์ หรือข้อเสนอแนะ..."></textarea>
       <div class="counter"><span id="cnt">0</span> / 500</div>
@@ -115,7 +143,7 @@ const CONFIG = {
   flow3Url: "https://default54cf0b457b5b41b0bbebdddef5eae5.12.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e79ef2109eb94e4488c15c24c61c72f7/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=dbIRCX3BTO9PnuKdpHCjk5XMpHpADU1f-wowBgbWI_g"          // <-- Flow 3 (บันทึกคะแนน)
 };
 
-let state = { ticketId:"", rating:0, lineUserId:"" };
+let state = { ticketId:"", rating:0, speed:0, politeness:0, resolution:0, lineUserId:"" };
 const RATING_LABEL = ["","น้อยที่สุด","น้อย","ปานกลาง","ดี","ดีมาก"];
 
 /* ---------- อ่าน tid จาก URL ---------- */
@@ -171,6 +199,18 @@ function paintStars(){
   document.getElementById("submitBtn").disabled = state.rating < 1;
 }
 
+/* ---------- Sub-rating stars (ความรวดเร็ว/ความสุภาพ/การแก้ปัญหา) ---------- */
+document.querySelectorAll(".stars-sm").forEach(group => {
+  const key = group.dataset.key;
+  group.addEventListener("click", (e) => {
+    const s = e.target.closest(".star"); if(!s) return;
+    state[key] = parseInt(s.dataset.v,10);
+    group.querySelectorAll(".star").forEach(st => {
+      st.classList.toggle("on", parseInt(st.dataset.v,10) <= state[key]);
+    });
+  });
+});
+
 /* ---------- Comment counter ---------- */
 const cm = document.getElementById("comment");
 cm.addEventListener("input", () => { document.getElementById("cnt").textContent = cm.value.length; });
@@ -185,6 +225,9 @@ async function submitRating(){
   const payload = {
     ticketId: state.ticketId,
     rating: state.rating,
+    speed: state.speed,
+    politeness: state.politeness,
+    resolution: state.resolution,
     comment: safeComment,
     lineUserId: state.lineUserId
   };
