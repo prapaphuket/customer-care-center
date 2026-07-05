@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard สรุปสถิติ · Customer Care Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --navy:#3C549A; --navy-d:#2E4B8F; --aqua:#2BB7C4; --sage:#7BA88F;
+    --bg:#F4F6FB; --card:#fff; --border:#E4E8F1; --text:#1F2733; --muted:#7B879C;
+    --ok:#1E9E6A; --warn:#E8A13A; --danger:#D9534F; --amber:#F5A623;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Prompt","Noto Sans Thai","Tahoma",sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
+  .app{max-width:1180px;margin:0 auto;padding:0 16px 40px;}
+  .top{background:var(--navy);color:#fff;margin:0 -16px 18px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  .top h1{margin:0;font-size:20px;font-weight:600;}
+  .top .sub{font-size:12.5px;opacity:.85;margin-top:2px;}
+  .top .brand{width:44px;height:44px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:16px;}
+  .bar label{font-size:12px;color:var(--muted);margin-right:4px;}
+  select{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);}
+  .btn{font:inherit;font-size:13px;padding:7px 14px;border:none;border-radius:8px;background:var(--navy);color:#fff;cursor:pointer;font-weight:500;}
+  .btn.ghost{background:#fff;color:var(--navy);border:1px solid var(--navy);}
+  .btn:active{transform:scale(.98);}
+  .spacer{flex:1;}
+  .note{font-size:12px;color:var(--muted);}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+  .kpi .l{font-size:12px;color:var(--muted);}
+  .kpi .v{font-size:26px;font-weight:700;margin-top:4px;color:var(--navy-d);}
+  .kpi .v small{font-size:14px;font-weight:500;color:var(--muted);}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+  @media(max-width:760px){.grid{grid-template-columns:1fr;}}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;}
+  .card h3{margin:0 0 12px;font-size:15px;font-weight:600;color:var(--navy-d);}
+  .card.full{grid-column:1 / -1;}
+  .cwrap{position:relative;height:260px;}
+  .empty{color:var(--muted);font-size:13px;text-align:center;padding:30px 0;}
+  table.sla{width:100%;border-collapse:collapse;font-size:13px;}
+  table.sla th,table.sla td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left;}
+  table.sla th{color:var(--muted);font-weight:500;}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:600;}
+  .foot{margin-top:20px;font-size:11.5px;color:var(--muted);text-align:center;line-height:1.7;}
+  @media print{.bar{display:none;} body{background:#fff;} .top{margin:0 0 10px;border-radius:0;}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div class="brand">HEA</div>
+      <div><h1>Dashboard สรุปสถิติ · Customer Care Center</h1>
+      <div class="sub" id="metaLine">ระบบรับเรื่องร้องเรียน LINE OA</div></div>
+    </div>
+  </div>
+
+  <div class="bar">
+    <label>เดือน</label><select id="fMonth"></select>
+    <label>ตำบล</label><select id="fTambon"></select>
+    <label>ช่องทาง</label><select id="fChannel"></select>
+    <button class="btn ghost" onclick="resetFilters()">ล้างตัวกรอง</button>
+    <div class="spacer"></div>
+    <button class="btn" onclick="refreshLive()">รีเฟรชข้อมูลสด</button>
+    <button class="btn ghost" onclick="window.print()">พิมพ์ / บันทึก PDF</button>
+  </div>
+  <div class="note" id="dataNote" style="margin:-6px 2px 14px;"></div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid">
+    <div class="card"><h3>คะแนนเฉลี่ยรายด้าน (เต็ม 5)</h3><div class="cwrap"><canvas id="cAvg"></canvas></div></div>
+    <div class="card"><h3>แนวโน้มคะแนนเฉลี่ยรายเดือน</h3><div class="cwrap"><canvas id="cTrend"></canvas></div></div>
+    <div class="card"><h3>เคสแยกตามสถานะ</h3><div class="cwrap"><canvas id="cStatus"></canvas></div></div>
+    <div class="card"><h3>เคสแยกตามช่องทางรับเรื่อง</h3><div class="cwrap"><canvas id="cChannel"></canvas></div></div>
+    <div class="card"><h3>เคสแยกตามตำบล</h3><div class="cwrap"><canvas id="cTambon"></canvas></div></div>
+    <div class="card"><h3>เคสแยกตามประเภทเรื่อง</h3><div class="cwrap"><canvas id="cType"></canvas></div></div>
+    <div class="card full"><h3>สรุป SLA (กำหนดปิดงาน)</h3><div id="slaBox"></div></div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+/* =========================================================
+   ⚙️ ตั้งค่า (ทางเลือก)
+   ถ้าทีม IT สร้าง Flow ดึงข้อมูลสถิติ (HTTP → Get items → Response)
+   ให้วาง URL ที่นี่ เพื่อให้ปุ่ม "รีเฟรชข้อมูลสด" ทำงานได้จากทุกที่
+   ========================================================= */
+const CONFIG = { statsFlowUrl: "" };
+const SP_SITE = "https://sevenutilitiesandpower.sharepoint.com/sites/CustomerCareCenter";
+
+/* ข้อมูล snapshot ณ วันที่สร้างรายงาน (คอลัมน์:
+   [Title, Status, Tambon, Channel, ComplaintType, Rating, Speed, Politeness, Resolution, Month(yyyy-MM), DueDate, ClosedDate]) */
+const SNAPSHOT_DATE = "5 กรกฎาคม 2569 (2026-07-05)";
+let RAW = [
+ ["CC-2026-07-0001","เสร็จสิ้น","สาคู","LINE OA","อื่นๆ",5,null,null,null,"2026-07","",""],
+ ["CC-2026-07-0002","เสร็จสิ้น","ไม้ขาว","LINE OA","น้ำไม่ไหล/ไหลอ่อน",null,null,null,null,"2026-07","",""],
+ ["CC-2026-07-0003","เสร็จสิ้น","ไม้ขาว","LINE OA","น้ำไม่ไหล/ไหลอ่อน",null,null,null,null,"2026-07","",""],
+ ["CC-2026-07-0004","รับเรื่อง","ไม้ขาว","LINE OA","คุณภาพน้ำ",null,null,null,null,"2026-07","",""],
+ ["CC-2026-07-0005","รับเรื่อง","สาคู","โทรศัพท์","อื่นๆ",null,null,null,null,"2026-07","",""],
+ ["CC-2026-07-0006","รับเรื่อง","สาคู","เคาน์เตอร์","น้ำไม่ไหล/ไหลอ่อน",null,null,null,null,"2026-07","2026-07-06",""],
+ ["CC-2026-07-0007","รับเรื่อง","สาคู","อีเมล","บริการ/พนักงาน",null,null,null,null,"2026-07","2026-07-09",""],
+ ["CC-2026-07-0008","เสร็จสิ้น","ไม้ขาว","LINE OA","คุณภาพน้ำ",5,5,5,5,"2026-07","2026-07-07","2026-07-05"]
+];
+let DATA_MODE = "snapshot";
+
+const NAVY="#3C549A", AQUA="#2BB7C4", SAGE="#7BA88F", AMBER="#F5A623", MUTED="#B8C0D0";
+const STATUS_COLORS={"รับเรื่อง":"#8C9BC7","ดำเนินการ":AMBER,"ส่งต่อ":AQUA,"เสร็จสิ้น":"#1E9E6A"};
+const PALETTE=[NAVY,AQUA,SAGE,AMBER,"#B07BB0","#D9868B","#6FA8DC","#93C47D"];
+const charts={};
+const col={T:0,ST:1,TB:2,CH:3,CT:4,R:5,RS:6,RP:7,RR:8,MO:9,DUE:10,CLO:11};
+
+function opts(id){ return {S:document.getElementById(id)}; }
+function uniq(idx){ return [...new Set(RAW.map(r=>r[idx]).filter(Boolean))].sort(); }
+function fillSelect(el,vals,allLabel){ el.innerHTML="<option value=''>"+allLabel+"</option>"+vals.map(v=>"<option>"+v+"</option>").join(""); }
+
+function buildFilters(){
+  fillSelect(document.getElementById("fMonth"),uniq(col.MO),"ทุกเดือน");
+  fillSelect(document.getElementById("fTambon"),uniq(col.TB),"ทุกตำบล");
+  fillSelect(document.getElementById("fChannel"),uniq(col.CH),"ทุกช่องทาง");
+  ["fMonth","fTambon","fChannel"].forEach(id=>document.getElementById(id).onchange=render);
+}
+function resetFilters(){ ["fMonth","fTambon","fChannel"].forEach(id=>document.getElementById(id).value=""); render(); }
+
+function filtered(){
+  const m=document.getElementById("fMonth").value, t=document.getElementById("fTambon").value, c=document.getElementById("fChannel").value;
+  return RAW.filter(r=>(!m||r[col.MO]===m)&&(!t||r[col.TB]===t)&&(!c||r[col.CH]===c));
+}
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+const r1=n=>Math.round(n*10)/10;
+
+function groupCount(rows,idx){ const m={}; rows.forEach(r=>{const k=r[idx]||"(ไม่ระบุ)"; m[k]=(m[k]||0)+1;}); return m; }
+
+function makeChart(id,cfg){ if(charts[id])charts[id].destroy(); charts[id]=new Chart(document.getElementById(id),cfg); }
+
+function render(){
+  const rows=filtered();
+  const rated=rows.filter(r=>r[col.R]!=null);
+  const done=rows.filter(r=>r[col.ST]==="เสร็จสิ้น").length;
+  const avgAll=avg(rated.map(r=>r[col.R]));
+  // KPIs
+  const kpis=[
+    ["เคสทั้งหมด",rows.length,""],
+    ["ปิดงานแล้ว",done,rows.length?"("+Math.round(done/rows.length*100)+"%)":""],
+    ["รอดำเนินการ",rows.length-done,""],
+    ["คะแนนเฉลี่ยรวม",rated.length?r1(avgAll):"–",rated.length?"/ 5":""],
+    ["จำนวนที่ให้คะแนน",rated.length,""],
+  ];
+  document.getElementById("kpis").innerHTML=kpis.map(k=>
+    "<div class='kpi'><div class='l'>"+k[0]+"</div><div class='v'>"+k[1]+" <small>"+k[2]+"</small></div></div>").join("");
+
+  // Avg by dimension
+  const dims=[["รวม",col.R],["ความรวดเร็ว",col.RS],["ความสุภาพ",col.RP],["การแก้ปัญหา",col.RR]];
+  const dv=dims.map(d=>{const a=rows.map(r=>r[d[1]]).filter(v=>v!=null&&v>0); return a.length?r1(avg(a)):0;});
+  makeChart("cAvg",{type:"bar",data:{labels:dims.map(d=>d[0]),datasets:[{data:dv,backgroundColor:[NAVY,AQUA,SAGE,AMBER],borderRadius:6,barPercentage:.6}]},
+    options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+" / 5"}}},scales:{y:{beginAtZero:true,max:5,ticks:{stepSize:1}}},maintainAspectRatio:false}});
+
+  // Trend by month (avg overall rating)
+  const months=uniq(col.MO);
+  const trend=months.map(m=>{const a=RAW.filter(r=>r[col.MO]===m&&r[col.R]!=null).map(r=>r[col.R]); return a.length?r1(avg(a)):null;});
+  const vol=months.map(m=>RAW.filter(r=>r[col.MO]===m).length);
+  makeChart("cTrend",{data:{labels:months,datasets:[
+      {type:"line",label:"คะแนนเฉลี่ย",data:trend,borderColor:NAVY,backgroundColor:NAVY,tension:.3,yAxisID:"y",spanGaps:true},
+      {type:"bar",label:"จำนวนเคส",data:vol,backgroundColor:"#DCE3F2",yAxisID:"y1",barPercentage:.5}]},
+    options:{plugins:{legend:{position:"bottom"}},scales:{y:{beginAtZero:true,max:5,position:"left",title:{display:true,text:"คะแนน"}},y1:{beginAtZero:true,position:"right",grid:{drawOnChartArea:false},title:{display:true,text:"จำนวน"}}},maintainAspectRatio:false}});
+
+  // Status donut
+  const sc=groupCount(rows,col.ST);
+  makeChart("cStatus",{type:"doughnut",data:{labels:Object.keys(sc),datasets:[{data:Object.values(sc),backgroundColor:Object.keys(sc).map(k=>STATUS_COLORS[k]||MUTED)}]},
+    options:{plugins:{legend:{position:"right"}},maintainAspectRatio:false,cutout:"58%"}});
+
+  // Channel donut
+  const cc=groupCount(rows,col.CH);
+  makeChart("cChannel",{type:"doughnut",data:{labels:Object.keys(cc),datasets:[{data:Object.values(cc),backgroundColor:PALETTE}]},
+    options:{plugins:{legend:{position:"right"}},maintainAspectRatio:false,cutout:"58%"}});
+
+  // Tambon bar
+  const tc=groupCount(rows,col.TB);
+  makeChart("cTambon",{type:"bar",data:{labels:Object.keys(tc),datasets:[{data:Object.values(tc),backgroundColor:NAVY,borderRadius:6,barPercentage:.5}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},maintainAspectRatio:false}});
+
+  // Type horizontal bar
+  const ct=groupCount(rows,col.CT);
+  makeChart("cType",{type:"bar",data:{labels:Object.keys(ct),datasets:[{data:Object.values(ct),backgroundColor:AQUA,borderRadius:6}]},
+    options:{indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{stepSize:1}}},maintainAspectRatio:false}});
+
+  // SLA summary
+  const today=new Date().toISOString().slice(0,10);
+  let onTime=0,overdue=0,noDue=0;
+  rows.forEach(r=>{
+    const due=r[col.DUE], clo=r[col.CLO], st=r[col.ST];
+    if(!due){noDue++;return;}
+    const endRef = (st==="เสร็จสิ้น" && clo)? clo : today;
+    if(endRef<=due) onTime++; else overdue++;
+  });
+  const tot=onTime+overdue;
+  document.getElementById("slaBox").innerHTML=
+    "<table class='sla'><tr><th>ตัวชี้วัด</th><th>จำนวน</th><th>สัดส่วน</th></tr>"+
+    "<tr><td><span class='pill' style='background:#E7F6EE;color:#1E7A46'>ภายในกำหนด</span></td><td>"+onTime+"</td><td>"+(tot?Math.round(onTime/tot*100):0)+"%</td></tr>"+
+    "<tr><td><span class='pill' style='background:#FBE9E7;color:#C0392B'>เกินกำหนด</span></td><td>"+overdue+"</td><td>"+(tot?Math.round(overdue/tot*100):0)+"%</td></tr>"+
+    "<tr><td><span class='pill' style='background:#EEF1FA;color:#3C549A'>ยังไม่ตั้งกำหนด</span></td><td>"+noDue+"</td><td>–</td></tr></table>"+
+    "<div class='note' style='margin-top:8px'>* เคสที่ยังไม่ปิดจะเทียบกำหนดกับวันที่ปัจจุบัน; เคสปิดแล้วเทียบวันปิดงานกับกำหนด</div>";
+}
+
+function setMeta(){
+  document.getElementById("metaLine").textContent =
+    (DATA_MODE==="live"? "ข้อมูลสด ณ "+new Date().toLocaleString("th-TH") : "ข้อมูล ณ "+SNAPSHOT_DATE)+" · ทั้งหมด "+RAW.length+" เคส";
+  document.getElementById("dataNote").textContent = DATA_MODE==="live"
+    ? "แสดงข้อมูลสดจากระบบ"
+    : "แสดงข้อมูล snapshot (บันทึกไว้ในไฟล์) — กด \"รีเฟรชข้อมูลสด\" เมื่อเปิดในบริบทที่เชื่อมต่อระบบได้ หรือให้ทีม IT ตั้งค่า Flow เพื่อรีเฟรชสด";
+  document.getElementById("foot").innerHTML =
+    "Customer Care Center · HEA (เครือ AEU) &nbsp;|&nbsp; แดชบอร์ดนี้เป็นไฟล์เดียวเปิดได้ทันที (ใช้ Chart.js) &nbsp;|&nbsp; ข้อมูล snapshot ณ "+SNAPSHOT_DATE;
+}
+
+async function refreshLive(){
+  const sel="Title,Status,Tambon,IntakeChannel,ComplaintType,Rating,RatingSpeed,RatingPoliteness,RatingResolution,CreatedDate,DueDate,ClosedDate";
+  try{
+    let items;
+    if(CONFIG.statsFlowUrl){
+      const r=await fetch(CONFIG.statsFlowUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+      items=await r.json();
+    } else {
+      const r=await fetch(SP_SITE+"/_api/web/lists/getbytitle('Customer Care Center')/items?$select="+sel+"&$top=5000",{headers:{"Accept":"application/json;odata=nometadata"},credentials:"include"});
+      const j=await r.json(); items=j.value;
+    }
+    const cv=v=>(v&&typeof v==="object")?(v.Value||""):(v||"");
+    RAW=items.map(x=>[x.Title,cv(x.Status),cv(x.Tambon),cv(x.IntakeChannel),cv(x.ComplaintType),x.Rating,x.RatingSpeed,x.RatingPoliteness,x.RatingResolution,(x.CreatedDate||"").slice(0,7),(x.DueDate||"").slice(0,10),(x.ClosedDate||"").slice(0,10)]);
+    DATA_MODE="live"; buildFilters(); setMeta(); render();
+    alert("รีเฟรชข้อมูลสดสำเร็จ ("+RAW.length+" เคส)");
+  }catch(e){
+    alert("ยังรีเฟรชสดไม่ได้จากที่นี่ (สิทธิ์/CORS) — ยังคงแสดงข้อมูล snapshot\n\nวิธีทำให้รีเฟรชสดได้: ให้ทีม IT สร้าง Flow ดึงข้อมูล แล้ววาง URL ที่ตัวแปร CONFIG.statsFlowUrl ในไฟล์นี้");
+  }
+}
+
+buildFilters(); setMeta(); render();
+</script>
+</body>
+</html>
