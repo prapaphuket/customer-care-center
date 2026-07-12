@@ -148,7 +148,7 @@ let state = { lineUserId:"" };
 const REG = {};   // เก็บ raw item ราย ticketId ไว้เปิดหน้ารายละเอียด
 
 /* ---------- Status → ขั้น timeline + สีป้าย ---------- */
-const STEPS = ["รับเรื่อง","ดำเนินการ","ส่งต่อ","เสร็จสิ้น"];
+const STEPS = ["รับเรื่อง","ดำเนินการ","เสร็จสิ้น"];
 function stepIndex(s){
   const i = STEPS.indexOf((s||"").trim());
   return i < 0 ? 0 : i;
@@ -156,7 +156,6 @@ function stepIndex(s){
 function badgeClass(s){
   switch((s||"").trim()){
     case "ดำเนินการ": return "b-prog";
-    case "ส่งต่อ":    return "b-fwd";
     case "เสร็จสิ้น":  return "b-done";
     default:          return "b-recv";
   }
