@@ -115,10 +115,6 @@
       </select>
       <div class="err" id="errType">กรุณาเลือกประเภทเรื่อง</div>
 
-      <label class="f">หัวข้อเรื่อง <span class="req">*</span></label>
-      <input type="text" id="subject" placeholder="เช่น น้ำขุ่นมีตะกอน" maxlength="120" />
-      <div class="err" id="errSubject">กรุณากรอกหัวข้อเรื่อง</div>
-
       <label class="f">รายละเอียด <span class="req">*</span></label>
       <textarea id="description" maxlength="500" placeholder="อธิบายปัญหาที่พบ..."></textarea>
       <div class="counter"><span id="cnt">0</span> / 500</div>
@@ -152,6 +148,9 @@
       <label class="f">เบอร์โทรติดต่อกลับ <span class="req">*</span></label>
       <input type="tel" id="contactPhone" maxlength="15" inputmode="numeric" placeholder="เช่น 0812345678" />
       <div class="err" id="errPhone">กรุณากรอกเบอร์โทรให้ถูกต้อง (9–10 หลัก)</div>
+
+      <label class="f">รหัสลูกค้า / เลขที่ผู้ใช้น้ำ (ถ้ามี)</label>
+      <input type="text" id="customerCode" maxlength="30" placeholder="ระบุรหัสลูกค้า (ไม่บังคับ)" />
 
       <label class="f">แนบรูปภาพ (ถ้ามี · สูงสุด 3 รูป)</label>
       <div class="photos" id="photos">
@@ -200,7 +199,6 @@
       <div style="margin-top:14px;">
         <div class="kv"><span class="k">ประเภท</span><span id="resType">-</span></div>
         <div class="kv"><span class="k">วันที่แจ้ง</span><span id="resDate">-</span></div>
-        <div class="kv"><span class="k">หัวข้อ</span><span id="resSubject">-</span></div>
         <div class="kv"><span class="k">พื้นที่</span><span id="resArea">-</span></div>
       </div>
 
@@ -335,7 +333,7 @@ function hideErr(id){ document.getElementById(id).style.display = "none"; }
 function clearForm(){
   state.complaintType=""; state.gps=""; state.photos=[];
   document.getElementById("complaintType").value="";
-  ["subject","description","contactName","contactPhone"].forEach(id=>document.getElementById(id).value="");
+  ["description","contactName","contactPhone","customerCode"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("pdpaConsent").checked=false;
   document.getElementById("tambon").value="";
   const vsel=document.getElementById("village"); vsel.innerHTML='<option value="">— เลือกตำบลก่อน —</option>'; vsel.disabled=true;
@@ -346,18 +344,17 @@ function clearForm(){
 
 /* ---------- Submit ---------- */
 async function submitForm(){
-  const subject = document.getElementById("subject").value.trim();
   const description = document.getElementById("description").value.trim();
   const tambon = document.getElementById("tambon").value;
   const village = document.getElementById("village").value.trim();
   const contactName = document.getElementById("contactName").value.trim();
   const contactPhone = document.getElementById("contactPhone").value.trim();
+  const customerCode = document.getElementById("customerCode").value.trim();
   const phoneDigits = contactPhone.replace(/[^0-9]/g,"");
   const pdpaConsent = document.getElementById("pdpaConsent").checked;
 
   let ok = true;
   if(!state.complaintType){ showErr("errType"); ok=false; }
-  if(!subject){ showErr("errSubject"); ok=false; } else hideErr("errSubject");
   if(!description){ showErr("errDesc"); ok=false; } else hideErr("errDesc");
   if(!tambon){ showErr("errTambon"); ok=false; } else hideErr("errTambon");
   if(!village){ showErr("errVillage"); ok=false; } else hideErr("errVillage");
@@ -373,7 +370,8 @@ async function submitForm(){
   const payload = {
     serviceType: CONFIG.serviceType,
     complaintType: state.complaintType,
-    subject: subject,
+    subject: "",
+    customerCode: customerCode,
     description: description,
     tambon: tambon,
     village: village,
@@ -408,7 +406,6 @@ function showSuccess(data, payload){
   document.getElementById("resTicket").textContent  = data.ticketId;
   document.getElementById("resStatus").textContent  = data.status || "รับเรื่องแล้ว";
   document.getElementById("resType").textContent     = payload.complaintType;
-  document.getElementById("resSubject").textContent  = payload.subject;
   document.getElementById("resArea").textContent     = "หมู่ " + payload.village.replace(/[^0-9]/g,"") + " ต." + payload.tambon;
   const d = new Date();
   document.getElementById("resDate").textContent =
