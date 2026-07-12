@@ -67,6 +67,25 @@
   .overlay{position:fixed;inset:0;background:rgba(255,255,255,.8);display:none;align-items:center;justify-content:center;z-index:50;}
   .spinner{width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg)}}
+  /* ===== Detail popup (bottom sheet) ===== */
+  .tk{cursor:pointer;transition:box-shadow .15s,transform .05s;}
+  .tk:active{box-shadow:0 4px 14px rgba(60,84,154,.14);transform:scale(.995);}
+  .tk-more{margin-top:11px;font-size:12px;color:var(--navy);font-weight:600;text-align:right;}
+  .modal{position:fixed;inset:0;z-index:60;display:none;align-items:flex-end;justify-content:center;background:rgba(20,28,45,.45);}
+  .modal.show{display:flex;}
+  .sheet{background:#fff;width:100%;max-width:480px;max-height:90vh;border-radius:18px 18px 0 0;display:flex;flex-direction:column;animation:slideup .22s ease;}
+  @keyframes slideup{from{transform:translateY(48px);opacity:.5}to{transform:translateY(0);opacity:1}}
+  .sheet-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 18px 13px;border-bottom:1px solid var(--border);}
+  .sheet-hd .sid{font-size:18px;font-weight:800;color:var(--navy);letter-spacing:.02em;}
+  .sheet-x{border:none;background:#F0F3FA;color:var(--muted);width:32px;height:32px;border-radius:50%;font-size:20px;cursor:pointer;line-height:1;flex:0 0 auto;}
+  .sheet-bd{padding:8px 18px 22px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  .drow{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid #F1F4F9;}
+  .drow:last-child{border-bottom:none;}
+  .dk{flex:0 0 34%;color:var(--muted);font-size:13px;}
+  .dv{flex:1;font-size:14px;font-weight:500;word-break:break-word;}
+  .dv.desc{white-space:pre-wrap;font-weight:400;}
+  .drate{color:#F5A623;letter-spacing:1px;}
+  .dsec{margin:16px 0 2px;font-size:12px;font-weight:700;color:var(--navy);letter-spacing:.03em;}
 </style>
 </head>
 <body>
@@ -106,6 +125,14 @@
 
 </div>
 
+<!-- Detail popup -->
+<div class="modal" id="detailModal" onclick="if(event.target===this)closeDetail()">
+  <div class="sheet">
+    <div class="sheet-hd"><span class="sid" id="dTitle">-</span><button class="sheet-x" onclick="closeDetail()" aria-label="ปิด">×</button></div>
+    <div class="sheet-bd" id="dBody"></div>
+  </div>
+</div>
+
 <div class="overlay" id="overlay"><div class="spinner"></div></div>
 
 <script>
@@ -118,6 +145,7 @@ const CONFIG = {
 };
 
 let state = { lineUserId:"" };
+const REG = {};   // เก็บ raw item ราย ticketId ไว้เปิดหน้ารายละเอียด
 
 /* ---------- Status → ขั้น timeline + สีป้าย ---------- */
 const STEPS = ["รับเรื่อง","ดำเนินการ","ส่งต่อ","เสร็จสิ้น"];
@@ -228,6 +256,8 @@ function pick(t){
 /* ---------- การ์ดสถานะ ---------- */
 function renderCard(raw){
   const t = pick(raw);
+  const clickable = !!(t.ticketId && t.ticketId !== "-");
+  if(clickable) REG[t.ticketId] = raw;
   const status = t.status || "รับเรื่อง";
   const idx = stepIndex(status);
   const area = (t.village ? ("หมู่ " + String(t.village).replace(/[^0-9]/g,"")) : "") + (t.tambon ? (" ต." + t.tambon) : "");
@@ -239,14 +269,67 @@ function renderCard(raw){
     return '<div class="stp'+on+done+'"><div class="dot">'+mark+'</div><div class="lbl">'+s+'</div></div>';
   }).join("");
   return ''
-    + '<div class="tk">'
+    + '<div class="tk"'+(clickable?(' onclick="openDetail(&quot;'+escapeHtml(t.ticketId)+'&quot;)"'):'')+'>'
     +   '<div class="tk-top"><span class="tk-id">'+escapeHtml(t.ticketId||"-")+'</span>'
     +     '<span class="badge '+badgeClass(status)+'">'+escapeHtml(status)+'</span></div>'
     +   (t.subject ? '<div class="tk-sub">'+escapeHtml(t.subject)+'</div>' : '')
     +   '<div class="tk-meta">'+escapeHtml([t.type, area].filter(Boolean).join(" · "))+(date?' · '+date:'')+'</div>'
     +   '<div class="tl">'+tl+'</div>'
+    +   (clickable ? '<div class="tk-more">ดูรายละเอียด ›</div>' : '')
     + '</div>';
 }
+
+/* ---------- Popup รายละเอียดเคส (customer-friendly) ---------- */
+function fvv(x){ return (x && typeof x==="object" && "Value" in x) ? x.Value : x; }
+function g(raw){ for(let i=1;i<arguments.length;i++){ const v=raw[arguments[i]]; if(v!==undefined && v!==null && v!=="") return v; } return ""; }
+function svcLabel(v){ v=fvv(v)||""; return ({request:"ขอใช้น้ำ/ติดตั้งมาตร",repair:"แจ้งซ่อม",feedback:"ร้องเรียน/แจ้งเรื่อง"})[v] || v; }
+function fmtFull(v){ if(!v) return ""; const d=new Date(v); if(isNaN(d)) return String(v);
+  return d.toLocaleDateString("th-TH",{day:"2-digit",month:"short",year:"numeric"})+" "+d.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"}); }
+function stars(n){ n=Math.max(0,Math.min(5,Math.round(Number(n)||0))); return "★".repeat(n)+"☆".repeat(5-n); }
+
+function openDetail(ticketId){
+  const raw = REG[ticketId];
+  if(!raw){ return; }
+  const status = fvv(raw.Status) || raw.status || "รับเรื่อง";
+  document.getElementById("dTitle").textContent = raw.Title || raw.ticketId || ticketId;
+
+  const rows = [];
+  const add = (k,v,cls) => { if(v!==""&&v!=null) rows.push('<div class="drow"><div class="dk">'+k+'</div><div class="dv'+(cls?" "+cls:"")+'">'+v+'</div></div>'); };
+  const sec = (label) => rows.push('<div class="dsec">'+label+'</div>');
+
+  rows.push('<div class="drow"><div class="dk">สถานะ</div><div class="dv"><span class="badge '+badgeClass(status)+'">'+escapeHtml(status)+'</span></div></div>');
+  add("ประเภทเรื่อง", escapeHtml(fvv(g(raw,"ComplaintType"))||""));
+  add("บริการ", escapeHtml(svcLabel(g(raw,"ServiceType"))));
+  const village=g(raw,"Village"), tambon=fvv(g(raw,"Tambon"));
+  const area=((village?("หมู่ "+String(village).replace(/[^0-9]/g,"")):"")+(tambon?(" ต."+tambon):"")).trim();
+  add("พื้นที่", escapeHtml(area));
+  add("รายละเอียด", escapeHtml(g(raw,"Description")), "desc");
+  add("ช่องทางแจ้ง", escapeHtml(fvv(g(raw,"IntakeChannel"))||""));
+  const cname=g(raw,"ContactName"), cphone=g(raw,"ContactPhone");
+  add("ผู้แจ้ง", [escapeHtml(cname), cphone?("โทร "+escapeHtml(cphone)):""].filter(Boolean).join(" · "));
+  add("วันที่แจ้ง", fmtFull(g(raw,"Created","CreatedDate")));
+
+  const ack=g(raw,"AckDueDate"), due=g(raw,"DueDate"), closed=g(raw,"ClosedDate");
+  if(ack||due||closed) sec("กำหนดเวลา (SLA)");
+  add("กำหนดตอบรับ", fmtFull(ack));
+  add("กำหนดแล้วเสร็จ", fmtFull(due));
+  add("ปิดงานเมื่อ", fmtFull(closed));
+
+  const rate=Number(g(raw,"Rating"))||0;
+  if(rate>0){
+    sec("ความพึงพอใจ");
+    add("คะแนนรวม", '<span class="drate">'+stars(rate)+'</span> '+rate+"/5");
+    const sp=Number(g(raw,"RatingSpeed"))||0, po=Number(g(raw,"RatingPoliteness"))||0, re=Number(g(raw,"RatingResolution"))||0;
+    if(sp) add("ความรวดเร็ว", '<span class="drate">'+stars(sp)+"</span>");
+    if(po) add("ความสุภาพ", '<span class="drate">'+stars(po)+"</span>");
+    if(re) add("การแก้ปัญหา", '<span class="drate">'+stars(re)+"</span>");
+    add("ความเห็นเพิ่มเติม", escapeHtml(g(raw,"RatingComments")), "desc");
+  }
+
+  document.getElementById("dBody").innerHTML = rows.join("");
+  document.getElementById("detailModal").classList.add("show");
+}
+function closeDetail(){ document.getElementById("detailModal").classList.remove("show"); }
 
 /* ---------- helpers ---------- */
 function configReady(){
