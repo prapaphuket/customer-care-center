@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>เก็บคะแนน (เจ้าหน้าที่) · Customer Care Center</title>
+<style>
+  :root{
+    --navy:#3C549A; --navy-dark:#324684; --border:#E4E8F1; --bg:#F4F6FB;
+    --text:#1F2733; --muted:#7B879C; --radius:12px; --ok:#1E9E6A; --star:#F5A623; --danger:#C0392B;
+    color-scheme:light;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;font-family:"Noto Sans Thai","Tahoma","Helvetica Neue",sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.55;}
+  .wrap{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+  .appbar{background:var(--navy);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .appbar h1{font-size:17px;margin:0;font-weight:600;}
+  .appbar .sub{font-size:12px;opacity:.9;margin-top:2px;}
+  .userbar{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:12px;color:#cdd6f2;}
+  .userbar button{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.45);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;font-family:inherit;}
+  .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);margin:14px 16px;padding:18px;}
+  label.f{display:block;font-weight:600;margin:0 0 6px;font-size:14px;}
+  input[type=text]{width:100%;border:1px solid var(--border);border-radius:10px;padding:11px 12px;font:inherit;color:var(--text);background:#fff;outline:none;}
+  input:focus,textarea:focus{border-color:var(--navy);box-shadow:0 0 0 2px #EEF1FA;}
+  .row{display:flex;gap:8px;}
+  .row input{flex:1;}
+  .btn{width:100%;border:none;border-radius:12px;padding:13px;font:inherit;font-size:15px;font-weight:600;cursor:pointer;}
+  .btn-primary{background:var(--navy);color:#fff;}
+  .btn-primary:active{background:var(--navy-dark);}
+  .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-outline{background:#fff;color:var(--navy);border:1px solid var(--navy);margin-top:10px;}
+  .search-btn{width:auto;padding:11px 18px;}
+  .msg{padding:11px 13px;border-radius:9px;font-size:14px;margin-top:12px;display:none;}
+  .msg.err{background:#FDECEA;color:var(--danger);display:block;}
+  .msg.info{background:#FEF6E7;color:#B8741A;display:block;}
+  .ref{background:#EEF1FA;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px;}
+  .ref .tid{font-size:20px;font-weight:700;color:var(--navy);}
+  .ref .meta{color:var(--muted);font-size:13px;margin-top:3px;line-height:1.5;}
+  .chan{display:inline-block;background:#E7F6EE;color:var(--ok);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600;margin-top:6px;}
+  .stars{display:flex;justify-content:center;gap:8px;margin:6px 0 4px;}
+  .star{font-size:42px;line-height:1;cursor:pointer;color:#DfE4EF;transition:transform .1s;user-select:none;}
+  .star.on{color:var(--star);}
+  .star:active{transform:scale(1.15);}
+  .ratingText{text-align:center;color:var(--muted);font-size:13px;min-height:20px;margin-bottom:10px;}
+  .subrate-group{border-top:1px solid var(--border);margin-top:12px;padding-top:6px;}
+  .subrate{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;}
+  .subrate .lbl{font-size:14px;font-weight:500;}
+  .subrate .stars-sm{display:flex;gap:4px;}
+  .subrate .stars-sm .star{font-size:26px;}
+  textarea{width:100%;border:1px solid var(--border);border-radius:10px;padding:11px 12px;font:inherit;color:var(--text);background:#fff;outline:none;resize:none;height:90px;margin-top:6px;}
+  .counter{text-align:right;color:var(--muted);font-size:12px;margin-top:4px;}
+  .li{border:1px solid var(--border);border-radius:9px;padding:11px 13px;margin-bottom:8px;cursor:pointer;}
+  .li:hover{border-color:var(--navy);background:#FAFBFF;}
+  .li .t{font-weight:700;color:var(--navy);font-size:15px;}
+  .li .m{font-size:12.5px;color:var(--muted);margin-top:2px;}
+  .footer{padding:8px 16px 22px;margin-top:auto;}
+  .success-ic{width:66px;height:66px;border-radius:50%;background:#E7F6EE;color:var(--ok);display:flex;align-items:center;justify-content:center;font-size:34px;margin:6px auto 12px;}
+  .success h2{text-align:center;margin:0 0 6px;font-size:20px;}
+  .success p{text-align:center;color:var(--muted);font-size:14px;margin:0;}
+  .hidden{display:none!important;}
+  .overlay{position:fixed;inset:0;background:rgba(255,255,255,.8);display:none;align-items:center;justify-content:center;z-index:50;}
+  .spinner{width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  /* auth gate */
+  #authGate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100;}
+  #authGate .box{background:#fff;border:1px solid var(--border);border-radius:12px;padding:28px 24px;max-width:360px;width:100%;text-align:center;}
+  #authGate h2{margin:0 0 6px;font-size:18px;color:var(--navy);}
+  #authGate .gsub{margin:0 0 18px;font-size:13px;color:var(--muted);}
+  #msBtn{display:inline-flex;align-items:center;gap:10px;background:#fff;border:1px solid #8c8c8c;border-radius:6px;padding:11px 16px;font-size:15px;font-weight:600;color:#5e5e5e;cursor:pointer;font-family:inherit;}
+  #msBtn:hover{background:#f3f3f3;}
+  #authMsg{margin-top:16px;font-size:13px;line-height:1.5;}
+  #authMsg.err{color:var(--danger);}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
+</head>
+<body>
+
+<!-- ===== หน้าเข้าสู่ระบบ ===== -->
+<div id="authGate">
+  <div class="box">
+    <h2>เก็บคะแนนความพึงพอใจ (เจ้าหน้าที่)</h2>
+    <p class="gsub">กรุณาเข้าสู่ระบบด้วยบัญชี Microsoft 365 ขององค์กร</p>
+    <button id="msBtn">
+      <svg width="20" height="20" viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+      เข้าสู่ระบบด้วย Microsoft
+    </button>
+    <div id="authMsg"></div>
+  </div>
+</div>
+
+<div class="wrap" id="app" style="display:none;">
+  <div class="appbar">
+    <div>
+      <h1>เก็บคะแนน (เจ้าหน้าที่)</h1>
+      <div class="sub">สำหรับเคสช่องทางโทรศัพท์ / เคาน์เตอร์เท่านั้น</div>
+    </div>
+    <div class="userbar" id="userBar" style="display:none;">
+      <span id="userName"></span>
+      <button id="logoutBtn">ออกจากระบบ</button>
+    </div>
+  </div>
+
+  <!-- ค้นหา -->
+  <div class="card" id="searchCard">
+    <label class="f" for="q">ค้นหาเลขที่เรื่อง (Ticket ID)</label>
+    <div class="row">
+      <input type="text" id="q" placeholder="เช่น CC-2026-07-0001" autocomplete="off">
+      <button class="btn btn-primary search-btn" id="btnSearch">ค้นหา</button>
+    </div>
+    <button class="btn btn-outline" id="btnList">แสดงรายการรอเก็บคะแนน</button>
+    <div class="msg" id="searchMsg"></div>
+  </div>
+
+  <!-- รายการรอเก็บ -->
+  <div class="card hidden" id="listCard">
+    <label class="f">เลือกเคสที่ต้องการเก็บคะแนน (เฉพาะโทรศัพท์/เคาน์เตอร์ ที่ยังไม่มีคะแนน)</label>
+    <div id="listBox"></div>
+  </div>
+
+  <!-- ฟอร์มให้คะแนน -->
+  <div class="card hidden" id="rateCard">
+    <div class="ref">
+      <div class="tid" id="refTid">—</div>
+      <div class="meta" id="refMeta"></div>
+      <span class="chan" id="refChan"></span>
+    </div>
+
+    <label class="f" style="text-align:center">คะแนนการให้บริการโดยรวม</label>
+    <div class="stars" id="stars">
+      <span class="star" data-v="1">★</span><span class="star" data-v="2">★</span><span class="star" data-v="3">★</span><span class="star" data-v="4">★</span><span class="star" data-v="5">★</span>
+    </div>
+    <div class="ratingText" id="ratingText">แตะดาวเพื่อให้คะแนน</div>
+
+    <div class="subrate-group">
+      <div class="subrate">
+        <span class="lbl">ความรวดเร็ว</span>
+        <div class="stars-sm" data-key="speed">
+          <span class="star" data-v="1">★</span><span class="star" data-v="2">★</span><span class="star" data-v="3">★</span><span class="star" data-v="4">★</span><span class="star" data-v="5">★</span>
+        </div>
+      </div>
+      <div class="subrate">
+        <span class="lbl">ความสุภาพของเจ้าหน้าที่</span>
+        <div class="stars-sm" data-key="politeness">
+          <span class="star" data-v="1">★</span><span class="star" data-v="2">★</span><span class="star" data-v="3">★</span><span class="star" data-v="4">★</span><span class="star" data-v="5">★</span>
+        </div>
+      </div>
+      <div class="subrate">
+        <span class="lbl">การแก้ปัญหา</span>
+        <div class="stars-sm" data-key="resolution">
+          <span class="star" data-v="1">★</span><span class="star" data-v="2">★</span><span class="star" data-v="3">★</span><span class="star" data-v="4">★</span><span class="star" data-v="5">★</span>
+        </div>
+      </div>
+    </div>
+
+    <label class="f" style="margin-top:14px">ความคิดเห็นจากลูกค้า (ถ้ามี)</label>
+    <textarea id="comment" maxlength="500" placeholder="สรุปความเห็น/ข้อเสนอแนะที่ลูกค้าแจ้งทางโทรศัพท์/เคาน์เตอร์..."></textarea>
+    <div class="counter"><span id="cnt">0</span> / 500</div>
+
+    <button class="btn btn-primary" id="submitBtn" style="margin-top:12px" disabled>บันทึกคะแนน</button>
+    <div class="msg" id="rateMsg"></div>
+  </div>
+
+  <!-- สำเร็จ -->
+  <div class="card hidden success" id="successCard">
+    <div class="success-ic">✓</div>
+    <h2>บันทึกคะแนนแล้ว</h2>
+    <p id="successText">บันทึกคะแนนของเคสนี้เรียบร้อย</p>
+    <div style="margin-top:14px"><button class="btn btn-outline" id="againBtn">เก็บคะแนนเคสอื่น</button></div>
+  </div>
+
+  <p style="text-align:center;font-size:11.5px;color:var(--muted);padding:0 16px 18px;">
+    หน้านี้ใช้เก็บคะแนนแทนลูกค้ากรณีรับเรื่องทางโทรศัพท์/เคาน์เตอร์ · เคสทาง LINE/อีเมล ลูกค้าให้คะแนนเอง
+  </p>
+</div>
+
+<div class="overlay" id="overlay"><div class="spinner"></div></div>
+
+<script>
+/* ===================== CONFIG ===================== */
+const CONFIG = {
+  // CCC-FlowStaff (get/list ticket) — sig URL
+  flowUrl: "https://default54cf0b457b5b41b0bbebdddef5eae5.12.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/31/workflows/f6b691a67dfd4334833596c9eeff75aa/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=aD4p65ZLt1ePAJQlFow6V8J_qCnQ-xRgHhGuIHCTWZk",
+  // Flow 3 (บันทึกคะแนน) — sig URL
+  flow3Url: "https://default54cf0b457b5b41b0bbebdddef5eae5.12.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e79ef2109eb94e4488c15c24c61c72f7/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=dbIRCX3BTO9PnuKdpHCjk5XMpHpADU1f-wowBgbWI_g",
+
+  // ช่องทางที่อนุญาตให้เจ้าหน้าที่เก็บคะแนนแทน (LINE/อีเมล ลูกค้าให้เอง จึงไม่รวม)
+  allowedChannels: ["โทรศัพท์", "เคาน์เตอร์"],
+
+  // ===== เข้าสู่ระบบด้วย Microsoft 365 =====
+  auth: {
+    enabled: true,
+    clientId: "75b5084b-4823-4a13-bb79-d47af910fb21",
+    tenantId: "54cf0b45-7b5b-41b0-bbeb-dddef5eae512",
+    groupId: "875efaee-f56c-4539-a561-05fd4425c5ad", // admin_ccc
+    redirectUri: "https://prapaphuket.github.io/customer-care-center/staff-rating.html"
+  }
+};
+/* ================================================== */
+
+const RATING_LABEL = ["","น้อยที่สุด","น้อย","ปานกลาง","ดี","ดีมาก"];
+let state = { item:null, ticketId:"", rating:0, speed:0, politeness:0, resolution:0, ratingBy:"" };
+
+function val(o){ return o==null ? "" : (typeof o==="object" ? (o.Value ?? o.Title ?? o.Email ?? "") : o); }
+function g(it,k){ return it && it[k]!=null ? it[k] : ""; }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function show(el,cls,txt){ el.className="msg "+cls; el.textContent=txt; el.style.display="block"; }
+function hide(el){ el.style.display="none"; }
+function fmtDate(s){ if(!s) return ""; const d=new Date(s); return isNaN(d)?s:d.toLocaleDateString("th-TH",{day:"2-digit",month:"short",year:"numeric"}); }
+
+async function callFlow(url,payload){
+  const r = await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  const t = await r.text();
+  let data; try{ data = t?JSON.parse(t):{}; }catch(e){ data = t; }
+  if(!r.ok) throw new Error("เซิร์ฟเวอร์ตอบกลับ "+r.status);
+  return data;
+}
+
+/* ---------- เปิดฟอร์มให้คะแนน / บล็อกตามเงื่อนไข ---------- */
+function openTicket(it){
+  const channel = val(g(it,"IntakeChannel"));
+  const rated = Number(g(it,"Rating")||0) >= 1;
+  const msg = document.getElementById("searchMsg");
+
+  if(!CONFIG.allowedChannels.includes(channel)){
+    show(msg,"info","เคสนี้เป็นช่องทาง \""+(channel||"ไม่ระบุ")+"\" ลูกค้าให้คะแนนเองผ่าน LINE/อีเมลได้ จึงไม่ต้องเก็บคะแนนแทน");
+    document.getElementById("rateCard").classList.add("hidden");
+    return;
+  }
+  if(rated){
+    show(msg,"info","เคสนี้มีคะแนนแล้ว ("+Number(g(it,"Rating"))+" ดาว) — ไม่บันทึกซ้ำ");
+    document.getElementById("rateCard").classList.add("hidden");
+    return;
+  }
+  hide(msg);
+  state.item=it; state.ticketId=g(it,"Title");
+  state.rating=0; state.speed=0; state.politeness=0; state.resolution=0;
+
+  document.getElementById("refTid").textContent = state.ticketId;
+  document.getElementById("refMeta").textContent = [val(g(it,"ComplaintType")), (val(g(it,"Tambon"))?("ต."+val(g(it,"Tambon"))):""), g(it,"ContactName")].filter(Boolean).join(" · ");
+  document.getElementById("refChan").textContent = "ช่องทาง: "+channel;
+
+  document.querySelectorAll(".stars .star, .stars-sm .star").forEach(s=>s.classList.remove("on"));
+  document.getElementById("ratingText").textContent = "แตะดาวเพื่อให้คะแนน";
+  document.getElementById("comment").value=""; document.getElementById("cnt").textContent="0";
+  document.getElementById("submitBtn").disabled = true;
+  hide(document.getElementById("rateMsg"));
+
+  document.getElementById("listCard").classList.add("hidden");
+  document.getElementById("successCard").classList.add("hidden");
+  document.getElementById("rateCard").classList.remove("hidden");
+  document.getElementById("rateCard").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* ---------- ค้นหา ---------- */
+async function doSearch(){
+  const q = document.getElementById("q").value.trim();
+  const msg = document.getElementById("searchMsg");
+  if(!q){ show(msg,"err","กรุณากรอกเลขที่เรื่อง"); return; }
+  hide(msg);
+  const btn=document.getElementById("btnSearch"); btn.disabled=true; btn.textContent="...";
+  try{
+    const res = await callFlow(CONFIG.flowUrl,{action:"get", ticketId:q});
+    const items = Array.isArray(res)?res:(res.value||[]);
+    if(!items.length){ show(msg,"err","ไม่พบเรื่องเลขที่ "+q); }
+    else openTicket(items[0]);
+  }catch(e){ show(msg,"err","เกิดข้อผิดพลาด: "+e.message); }
+  finally{ btn.disabled=false; btn.textContent="ค้นหา"; }
+}
+
+/* ---------- รายการรอเก็บ ---------- */
+async function doList(){
+  const msg=document.getElementById("searchMsg"); hide(msg);
+  const btn=document.getElementById("btnList"); btn.disabled=true; btn.textContent="กำลังโหลด...";
+  try{
+    const res = await callFlow(CONFIG.flowUrl,{action:"list"});
+    let items = Array.isArray(res)?res:(res.value||[]);
+    items = items.filter(it => CONFIG.allowedChannels.includes(val(g(it,"IntakeChannel"))) && Number(g(it,"Rating")||0) < 1);
+    const box=document.getElementById("listBox");
+    if(!items.length){ box.innerHTML='<p style="color:var(--muted);font-size:13px">ไม่มีเคสรอเก็บคะแนน</p>'; }
+    else{
+      box.innerHTML = items.map((it,i)=>`<div class="li" data-i="${i}">
+        <div class="t">${esc(g(it,"Title"))}</div>
+        <div class="m">${esc(val(g(it,"ComplaintType")))} · ${esc(val(g(it,"IntakeChannel")))} · ${esc(g(it,"ContactName"))} · ${esc(fmtDate(g(it,"Created")))}</div>
+      </div>`).join("");
+      box._items=items;
+      box.querySelectorAll(".li").forEach(el=>el.onclick=()=>openTicket(box._items[+el.dataset.i]));
+    }
+    document.getElementById("listCard").classList.remove("hidden");
+  }catch(e){ show(msg,"err","เกิดข้อผิดพลาด: "+e.message); }
+  finally{ btn.disabled=false; btn.textContent="แสดงรายการรอเก็บคะแนน"; }
+}
+
+/* ---------- ดาว ---------- */
+document.getElementById("stars").addEventListener("click",e=>{
+  const s=e.target.closest(".star"); if(!s) return;
+  state.rating=parseInt(s.dataset.v,10);
+  document.querySelectorAll("#stars .star").forEach(x=>x.classList.toggle("on",parseInt(x.dataset.v,10)<=state.rating));
+  document.getElementById("ratingText").textContent = state.rating+" ดาว · "+RATING_LABEL[state.rating];
+  document.getElementById("submitBtn").disabled = state.rating<1;
+});
+document.querySelectorAll(".stars-sm").forEach(group=>{
+  const key=group.dataset.key;
+  group.addEventListener("click",e=>{
+    const s=e.target.closest(".star"); if(!s) return;
+    state[key]=parseInt(s.dataset.v,10);
+    group.querySelectorAll(".star").forEach(x=>x.classList.toggle("on",parseInt(x.dataset.v,10)<=state[key]));
+  });
+});
+const cm=document.getElementById("comment");
+cm.addEventListener("input",()=>document.getElementById("cnt").textContent=cm.value.length);
+
+/* ---------- บันทึกคะแนน ---------- */
+async function submitRating(){
+  if(state.rating<1) return;
+  const msg=document.getElementById("rateMsg"); hide(msg);
+  const rawComment = document.getElementById("comment").value.trim().replace(/[\\"]/g,"'").replace(/[\r\n]+/g," ");
+  const channel = val(g(state.item,"IntakeChannel"));
+  // ฝังแหล่งที่มา+ผู้เก็บไว้ต้นความเห็น (แยกรายงานด้วยการค้นคำ "เจ้าหน้าที่เก็บ")
+  const marker = "[เจ้าหน้าที่เก็บ · " + channel + " · " + (state.ratingBy || "-") + "]";
+  const comment = marker + (rawComment ? " " + rawComment : "");
+  const payload = {
+    ticketId: state.ticketId,
+    rating: state.rating,
+    speed: state.speed,
+    politeness: state.politeness,
+    resolution: state.resolution,
+    comment: comment,
+    lineUserId: "",
+    feedbackSource: "เจ้าหน้าที่เก็บ (โทร/เคาน์เตอร์)",
+    ratingBy: state.ratingBy
+  };
+  document.getElementById("overlay").style.display="flex";
+  document.getElementById("submitBtn").disabled=true;
+  try{
+    await callFlow(CONFIG.flow3Url, payload);
+    document.getElementById("successText").textContent = "บันทึกคะแนน "+state.ticketId+" เรียบร้อย ("+state.rating+" ดาว)";
+    document.getElementById("rateCard").classList.add("hidden");
+    document.getElementById("successCard").classList.remove("hidden");
+    window.scrollTo(0,0);
+  }catch(e){ show(msg,"err","บันทึกไม่สำเร็จ: "+e.message); document.getElementById("submitBtn").disabled=false; }
+  finally{ document.getElementById("overlay").style.display="none"; }
+}
+
+/* ---------- events ---------- */
+document.getElementById("btnSearch").onclick=doSearch;
+document.getElementById("btnList").onclick=doList;
+document.getElementById("submitBtn").onclick=submitRating;
+document.getElementById("q").addEventListener("keydown",e=>{ if(e.key==="Enter") doSearch(); });
+document.getElementById("againBtn").onclick=()=>{
+  document.getElementById("successCard").classList.add("hidden");
+  document.getElementById("q").value=""; document.getElementById("q").focus();
+};
+
+/* ---------- เข้าสู่ระบบด้วย Microsoft 365 (MSAL) + จำกัดกลุ่ม admin_ccc ---------- */
+(function(){
+  const A=CONFIG.auth||{};
+  const gate=document.getElementById("authGate"), appEl=document.getElementById("app"), authMsg=document.getElementById("authMsg");
+  if(!A.enabled){ gate.style.display="none"; appEl.style.display=""; return; }
+  if(!window.msal){ authMsg.className="err"; authMsg.textContent="โหลดไลบรารี Microsoft ไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วรีเฟรช"; return; }
+
+  const app=new msal.PublicClientApplication({
+    auth:{ clientId:A.clientId, authority:"https://login.microsoftonline.com/"+A.tenantId, redirectUri:A.redirectUri },
+    cache:{ cacheLocation:"sessionStorage" }
+  });
+  function grant(account){
+    state.ratingBy = account.username || account.name || "";
+    document.getElementById("userName").textContent = account.name || account.username || "";
+    document.getElementById("userBar").style.display="flex";
+    document.getElementById("logoutBtn").onclick=()=>app.logoutRedirect();
+    gate.style.display="none"; appEl.style.display="";
+  }
+  function deny(text){
+    authMsg.className="err"; authMsg.textContent=text;
+    const b=document.getElementById("msBtn"); b.textContent="ออกจากระบบ / ลองบัญชีอื่น"; b.onclick=()=>app.logoutRedirect();
+  }
+  function evaluate(account){
+    const c=account.idTokenClaims||{};
+    if(c.tid && c.tid!==A.tenantId){ deny("บัญชีนี้ไม่ได้อยู่ในองค์กรที่กำหนด"); return; }
+    const groups=c.groups||[];
+    if(A.groupId && !groups.includes(A.groupId)){ deny("บัญชีนี้ไม่มีสิทธิ์เข้าถึง (ต้องอยู่ในกลุ่ม admin_ccc) — ติดต่อผู้ดูแลระบบ"); return; }
+    grant(account);
+  }
+  (async function(){
+    try{
+      await app.initialize();
+      const resp=await app.handleRedirectPromise();
+      let account=(resp&&resp.account)||app.getAllAccounts()[0]||null;
+      if(account){ app.setActiveAccount(account); evaluate(account); }
+      else document.getElementById("msBtn").onclick=()=>app.loginRedirect({scopes:["User.Read"],prompt:"select_account"});
+    }catch(e){ authMsg.className="err"; authMsg.textContent="เข้าสู่ระบบไม่สำเร็จ: "+(e&&e.message?e.message:e); }
+  })();
+})();
+</script>
+</body>
+</html>
