@@ -69,14 +69,48 @@
   .li .t{font-weight:700;color:var(--navy);font-size:15px;}
   .li .m{font-size:12.5px;color:var(--muted);margin-top:2px;}
   .hidden{display:none;}
+  /* ===== auth gate ===== */
+  #authGate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100;}
+  #authGate .box{background:#fff;border:1px solid var(--line);border-radius:12px;padding:28px 24px;max-width:360px;width:100%;text-align:center;}
+  #authGate h2{margin:0 0 6px;font-size:18px;color:var(--navy);}
+  #authGate .sub{margin:0 0 18px;font-size:13px;color:var(--muted);}
+  #msBtn{display:inline-flex;align-items:center;gap:10px;background:#fff;border:1px solid #8c8c8c;border-radius:6px;padding:11px 16px;font-size:15px;font-weight:600;color:#5e5e5e;cursor:pointer;font-family:inherit;}
+  #msBtn:hover{background:#f3f3f3;}
+  #authMsg{margin-top:16px;font-size:13px;line-height:1.5;}
+  #authMsg.err{color:var(--danger);}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .userbar{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:12px;color:#cdd6f2;}
+  .userbar button{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.45);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;font-family:inherit;}
+  .userbar button:hover{background:rgba(255,255,255,.28);}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
 </head>
 <body>
-<div class="wrap">
+
+<!-- ===== หน้าเข้าสู่ระบบ ===== -->
+<div id="authGate">
+  <div class="box">
+    <h2>อัปเดตสถานะงาน</h2>
+    <p class="sub">กรุณาเข้าสู่ระบบด้วยบัญชี Microsoft 365 ขององค์กร</p>
+    <button id="msBtn">
+      <svg width="20" height="20" viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+      เข้าสู่ระบบด้วย Microsoft
+    </button>
+    <div id="authMsg"></div>
+  </div>
+</div>
+
+<div class="wrap" id="app" style="display:none;">
 
   <div class="header">
-    <h1>อัปเดตสถานะงาน</h1>
-    <p>สำหรับเจ้าหน้าที่ · Customer Care Center</p>
+    <div>
+      <h1>อัปเดตสถานะงาน</h1>
+      <p>สำหรับเจ้าหน้าที่ · Customer Care Center</p>
+    </div>
+    <div class="userbar" id="userBar" style="display:none;">
+      <span id="userName"></span>
+      <button id="logoutBtn">ออกจากระบบ</button>
+    </div>
   </div>
 
   <!-- ค้นหา -->
@@ -126,13 +160,22 @@ const CONFIG = {
   flowUrl: "https://default54cf0b457b5b41b0bbebdddef5eae5.12.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/31/workflows/f6b691a67dfd4334833596c9eeff75aa/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=aD4p65ZLt1ePAJQlFow6V8J_qCnQ-xRgHhGuIHCTWZk",
 
   // ชุดสถานะ — ตรงกับ Choice "Status" ใน SharePoint (ห้ามพิมพ์ผิด)
-  statuses: ["รับเรื่อง", "ดำเนินการ", "ส่งต่อ", "เสร็จสิ้น"],
+  statuses: ["รับเรื่อง", "ดำเนินการ", "เสร็จสิ้น"],
 
   // สถานะที่จะแจ้งเตือนลูกค้าอัตโนมัติเมื่อบันทึก (ให้ยืนยันก่อน)
   notifyOnStatus: "เสร็จสิ้น",
 
   // (ทางเลือก) รหัสผ่านง่าย ๆ กันคนนอก — เว้น "" = ปิดใช้งาน
-  pin: ""
+  pin: "",
+
+  // ===== เข้าสู่ระบบด้วย Microsoft 365 (Entra ID / MSAL) =====
+  auth: {
+    enabled: true,
+    clientId: "75b5084b-4823-4a13-bb79-d47af910fb21",
+    tenantId: "54cf0b45-7b5b-41b0-bbeb-dddef5eae512",
+    groupId: "875efaee-f56c-4539-a561-05fd4425c5ad", // admin_ccc — เฉพาะสมาชิกกลุ่มนี้เข้าได้
+    redirectUri: "https://prapaphuket.github.io/customer-care-center/update-status.html"
+  }
 };
 /* ================================================== */
 
@@ -270,7 +313,7 @@ async function doUpdate(){
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span> กำลังบันทึก';
   try{
     const itemId = g(current,"ID") || g(current,"Id") || "";
-    await callFlow({action:"update", ticketId:ticketId, id:itemId, newStatus:newStatus});
+    await callFlow({action:"update", ticketId:ticketId, id:String(itemId), newStatus:newStatus});
     show(msg,"ok","บันทึกสำเร็จ · "+ticketId+" → "+newStatus);
     // อัปเดตหน้าจอทันที
     if(typeof current.Status === "object" && current.Status) current.Status.Value = newStatus;
@@ -288,11 +331,67 @@ document.getElementById("btnUpdate").onclick = doUpdate;
 document.getElementById("newStatus").onchange = syncFinishHint;
 document.getElementById("q").addEventListener("keydown",e=>{ if(e.key==="Enter") doSearch(); });
 
-// ---- optional PIN gate ----
-if(CONFIG.pin){
-  const p = prompt("กรุณากรอกรหัสผ่านเจ้าหน้าที่");
-  if(p !== CONFIG.pin){ document.body.innerHTML = '<p style="text-align:center;padding:40px;color:#C0392B">รหัสไม่ถูกต้อง</p>'; }
-}
+// ---- เข้าสู่ระบบด้วย Microsoft 365 (MSAL) + จำกัดกลุ่ม admin_ccc ----
+(function(){
+  const A = CONFIG.auth || {};
+  const gate = document.getElementById("authGate");
+  const appEl = document.getElementById("app");
+  const authMsg = document.getElementById("authMsg");
+
+  // ปิดระบบล็อกอิน (auth.enabled=false) → แสดงหน้าเลย
+  if(!A.enabled){ gate.style.display="none"; appEl.style.display=""; return; }
+
+  if(!window.msal){
+    authMsg.className="err";
+    authMsg.textContent="โหลดไลบรารี Microsoft ไม่สำเร็จ — ตรวจการเชื่อมต่ออินเทอร์เน็ตแล้วรีเฟรช";
+    return;
+  }
+
+  const app = new msal.PublicClientApplication({
+    auth:{ clientId:A.clientId, authority:"https://login.microsoftonline.com/"+A.tenantId, redirectUri:A.redirectUri },
+    cache:{ cacheLocation:"sessionStorage" }
+  });
+
+  function grant(account){
+    document.getElementById("userName").textContent = account.name || account.username || "";
+    document.getElementById("userBar").style.display = "flex";
+    document.getElementById("logoutBtn").onclick = ()=> app.logoutRedirect();
+    gate.style.display="none";
+    appEl.style.display="";
+  }
+  function deny(text){
+    authMsg.className="err";
+    authMsg.textContent = text;
+    const b=document.getElementById("msBtn");
+    b.textContent="ออกจากระบบ / ลองบัญชีอื่น";
+    b.onclick=()=>app.logoutRedirect();
+  }
+  function evaluate(account){
+    const c = account.idTokenClaims || {};
+    if(c.tid && c.tid !== A.tenantId){ deny("บัญชีนี้ไม่ได้อยู่ในองค์กรที่กำหนด"); return; }
+    const groups = c.groups || [];
+    if(A.groupId && !groups.includes(A.groupId)){
+      deny("บัญชีนี้ไม่มีสิทธิ์เข้าถึงหน้านี้ (ต้องอยู่ในกลุ่ม admin_ccc) — กรุณาติดต่อผู้ดูแลระบบ");
+      return;
+    }
+    grant(account);
+  }
+
+  (async function(){
+    try{
+      await app.initialize();
+      const resp = await app.handleRedirectPromise();
+      let account = (resp && resp.account) || app.getAllAccounts()[0] || null;
+      if(account){ app.setActiveAccount(account); evaluate(account); }
+      else {
+        document.getElementById("msBtn").onclick = ()=> app.loginRedirect({ scopes:["User.Read"], prompt:"select_account" });
+      }
+    }catch(e){
+      authMsg.className="err";
+      authMsg.textContent="เข้าสู่ระบบไม่สำเร็จ: "+(e && e.message ? e.message : e);
+    }
+  })();
+})();
 </script>
 </body>
 </html>
