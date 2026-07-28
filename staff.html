@@ -60,16 +60,44 @@
   .overlay{position:fixed;inset:0;background:rgba(255,255,255,.8);display:none;align-items:center;justify-content:center;z-index:50;}
   .spinner{width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg)}}
+  /* ===== auth gate ===== */
+  #authGate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100;}
+  #authGate .box{background:#fff;border:1px solid var(--border);border-radius:12px;padding:28px 24px;max-width:360px;width:100%;text-align:center;}
+  #authGate h2{margin:0 0 6px;font-size:18px;color:var(--navy);}
+  #authGate .sub{margin:0 0 18px;font-size:13px;color:var(--muted);}
+  #msBtn{display:inline-flex;align-items:center;gap:10px;background:#fff;border:1px solid #8c8c8c;border-radius:6px;padding:11px 16px;font-size:15px;font-weight:600;color:#5e5e5e;cursor:pointer;font-family:inherit;}
+  #msBtn:hover{background:#f3f3f3;}
+  #authMsg{margin-top:16px;font-size:13px;line-height:1.5;}
+  #authMsg.err{color:#C0392B;}
+  .appbar .logout{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.45);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px;display:none;}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
 </head>
 <body>
-<div class="wrap">
+
+<!-- ===== หน้าเข้าสู่ระบบ ===== -->
+<div id="authGate">
+  <div class="box">
+    <h2>เปิดใบงาน (เจ้าหน้าที่)</h2>
+    <p class="sub">กรุณาเข้าสู่ระบบด้วยบัญชี Microsoft 365 ขององค์กร</p>
+    <button id="msBtn">
+      <svg width="20" height="20" viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+      เข้าสู่ระบบด้วย Microsoft
+    </button>
+    <div id="authMsg"></div>
+  </div>
+</div>
+
+<div class="wrap" id="app" style="display:none;">
 
   <!-- ===== FORM VIEW ===== -->
   <div id="formView">
     <div class="appbar">
       <h1>เปิดใบงาน <span class="staffbadge">STAFF</span></h1>
-      <button class="clear" onclick="clearForm()">ล้าง</button>
+      <div>
+        <button class="clear" onclick="clearForm()">ล้าง</button>
+        <button class="logout" id="logoutBtn">ออกจากระบบ</button>
+      </div>
     </div>
     <div class="step">สำหรับเจ้าหน้าที่ · รับเรื่องทางโทรศัพท์ / เคาน์เตอร์ / อีเมล</div>
 
@@ -191,7 +219,16 @@
 <script>
 /* ⚙️ ตั้งค่า — flowUrl เดียวกับ feedback.html (Flow 1) */
 const CONFIG = {
-  flowUrl: "https://default54cf0b457b5b41b0bbebdddef5eae5.12.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f149e98bf725428c82f0ce14a6ed7292/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HNm8D_a5M5sZlr_D4HS6jhKhZItBktMqpiyOFlhYZDo"
+  flowUrl: "https://default54cf0b457b5b41b0bbebdddef5eae5.12.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f149e98bf725428c82f0ce14a6ed7292/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HNm8D_a5M5sZlr_D4HS6jhKhZItBktMqpiyOFlhYZDo",
+
+  // ===== เข้าสู่ระบบด้วย Microsoft 365 (Entra ID / MSAL) =====
+  auth: {
+    enabled: true,
+    clientId: "75b5084b-4823-4a13-bb79-d47af910fb21",
+    tenantId: "54cf0b45-7b5b-41b0-bbeb-dddef5eae512",
+    groupId: "875efaee-f56c-4539-a561-05fd4425c5ad", // admin_ccc — เฉพาะสมาชิกกลุ่มนี้เข้าได้
+    redirectUri: "https://prapaphuket.github.io/customer-care-center/staff.html"
+  }
 };
 
 let state = { channel:"", complaintType:"", photos:[] };
@@ -365,6 +402,63 @@ function showSuccess(data, payload){
   document.getElementById("successView").classList.remove("hidden");
   window.scrollTo(0,0);
 }
+
+// ---- เข้าสู่ระบบด้วย Microsoft 365 (MSAL) + จำกัดกลุ่ม admin_ccc ----
+(function(){
+  const A = CONFIG.auth || {};
+  const gate = document.getElementById("authGate");
+  const appEl = document.getElementById("app");
+  const authMsg = document.getElementById("authMsg");
+
+  if(!A.enabled){ gate.style.display="none"; appEl.style.display=""; return; }
+  if(!window.msal){
+    authMsg.className="err";
+    authMsg.textContent="โหลดไลบรารี Microsoft ไม่สำเร็จ — ตรวจการเชื่อมต่ออินเทอร์เน็ตแล้วรีเฟรช";
+    return;
+  }
+
+  const app = new msal.PublicClientApplication({
+    auth:{ clientId:A.clientId, authority:"https://login.microsoftonline.com/"+A.tenantId, redirectUri:A.redirectUri },
+    cache:{ cacheLocation:"sessionStorage" }
+  });
+
+  function grant(account){
+    const lo = document.getElementById("logoutBtn");
+    if(lo){ lo.style.display="inline-block"; lo.title = account.name || account.username || ""; lo.onclick = ()=> app.logoutRedirect(); }
+    gate.style.display="none";
+    appEl.style.display="";
+  }
+  function deny(text){
+    authMsg.className="err"; authMsg.textContent=text;
+    const b=document.getElementById("msBtn");
+    b.textContent="ออกจากระบบ / ลองบัญชีอื่น"; b.onclick=()=>app.logoutRedirect();
+  }
+  function evaluate(account){
+    const c = account.idTokenClaims || {};
+    if(c.tid && c.tid !== A.tenantId){ deny("บัญชีนี้ไม่ได้อยู่ในองค์กรที่กำหนด"); return; }
+    const groups = c.groups || [];
+    if(A.groupId && !groups.includes(A.groupId)){
+      deny("บัญชีนี้ไม่มีสิทธิ์เข้าถึงหน้านี้ (ต้องอยู่ในกลุ่ม admin_ccc) — กรุณาติดต่อผู้ดูแลระบบ");
+      return;
+    }
+    grant(account);
+  }
+
+  (async function(){
+    try{
+      await app.initialize();
+      const resp = await app.handleRedirectPromise();
+      let account = (resp && resp.account) || app.getAllAccounts()[0] || null;
+      if(account){ app.setActiveAccount(account); evaluate(account); }
+      else {
+        document.getElementById("msBtn").onclick = ()=> app.loginRedirect({ scopes:["User.Read"], prompt:"select_account" });
+      }
+    }catch(e){
+      authMsg.className="err";
+      authMsg.textContent="เข้าสู่ระบบไม่สำเร็จ: "+(e && e.message ? e.message : e);
+    }
+  })();
+})();
 </script>
 </body>
 </html>
