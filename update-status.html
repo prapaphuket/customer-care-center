@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>อัปเดตสถานะงาน · Customer Care Center</title>
+<style>
+  :root{
+    --navy:#3C549A; --navy-dark:#2E4079;
+    --line:#E4E8F1; --bg:#F5F7FB;
+    --ok:#1E9E5A; --warn:#C9871F; --muted:#6B7280; --danger:#C0392B;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0;font-family:"Tahoma","Segoe UI",system-ui,sans-serif;
+    background:var(--bg);color:#1F2937;line-height:1.55;
+    padding:16px;
+  }
+  .wrap{max-width:560px;margin:0 auto;}
+  .header{
+    background:var(--navy);color:#fff;border-radius:12px;
+    padding:18px 20px;margin-bottom:16px;
+  }
+  .header h1{margin:0;font-size:18px;font-weight:700;}
+  .header p{margin:4px 0 0;font-size:13px;opacity:.9;}
+  .card{
+    background:#fff;border:1px solid var(--line);border-radius:12px;
+    padding:18px;margin-bottom:16px;
+  }
+  label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151;}
+  input[type=text],select{
+    width:100%;padding:11px 12px;font-size:15px;font-family:inherit;
+    border:1px solid var(--line);border-radius:9px;background:#fff;color:#1F2937;
+  }
+  input:focus,select:focus{outline:none;border-color:var(--navy);}
+  .row{display:flex;gap:8px;}
+  .row input{flex:1;}
+  button{
+    font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;
+    border:none;border-radius:9px;padding:11px 16px;transition:.15s;
+  }
+  .btn-primary{background:var(--navy);color:#fff;}
+  .btn-primary:hover{background:var(--navy-dark);}
+  .btn-primary:disabled{background:#9AA6C9;cursor:not-allowed;}
+  .btn-ghost{background:#fff;color:var(--navy);border:1px solid var(--navy);width:100%;}
+  .btn-ghost:hover{background:#EEF1FA;}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px;}
+  .msg{padding:11px 13px;border-radius:9px;font-size:14px;margin-top:12px;display:none;}
+  .msg.err{background:#FDECEA;color:var(--danger);display:block;}
+  .msg.ok{background:#E7F6EE;color:var(--ok);display:block;}
+  .msg.info{background:#FEF6E7;color:var(--warn);display:block;}
+  .spin{display:inline-block;width:15px;height:15px;border:2px solid #fff;
+    border-top-color:transparent;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px;}
+  @keyframes sp{to{transform:rotate(360deg);}}
+  /* ticket detail */
+  .tk-id{font-size:20px;font-weight:700;color:var(--navy);}
+  .badge{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;margin-left:8px;vertical-align:2px;}
+  .b-รับเรื่อง{background:#EEF1FA;color:var(--navy);}
+  .b-ดำเนินการ{background:#FEF6E7;color:var(--warn);}
+  .b-ส่งต่อ{background:#EDE9FE;color:#6D28D9;}
+  .b-เสร็จสิ้น{background:#E7F6EE;color:var(--ok);}
+  .kv{display:flex;font-size:14px;padding:6px 0;border-top:1px dashed var(--line);}
+  .kv .k{width:120px;color:var(--muted);flex-shrink:0;}
+  .kv .v{flex:1;word-break:break-word;}
+  .divider{height:1px;background:var(--line);margin:16px 0;}
+  /* list */
+  .li{border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin-bottom:8px;cursor:pointer;transition:.12s;}
+  .li:hover{border-color:var(--navy);background:#FAFBFF;}
+  .li .t{font-weight:700;color:var(--navy);font-size:15px;}
+  .li .m{font-size:12.5px;color:var(--muted);margin-top:2px;}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <h1>อัปเดตสถานะงาน</h1>
+    <p>สำหรับเจ้าหน้าที่ · Customer Care Center</p>
+  </div>
+
+  <!-- ค้นหา -->
+  <div class="card">
+    <label for="q">ค้นหาด้วยเลขที่เรื่อง (Ticket ID)</label>
+    <div class="row">
+      <input type="text" id="q" placeholder="เช่น CC-2026-07-0001" autocomplete="off">
+      <button class="btn-primary" id="btnSearch">ค้นหา</button>
+    </div>
+    <button class="btn-ghost" id="btnList" style="margin-top:10px;">แสดงรายการงานล่าสุด</button>
+    <div class="msg" id="searchMsg"></div>
+  </div>
+
+  <!-- รายการล่าสุด -->
+  <div class="card hidden" id="listCard">
+    <label>เลือกงานที่ต้องการอัปเดต</label>
+    <div id="listBox"></div>
+  </div>
+
+  <!-- รายละเอียด + แก้สถานะ -->
+  <div class="card hidden" id="detailCard">
+    <div>
+      <span class="tk-id" id="dTicket"></span>
+      <span class="badge" id="dBadge"></span>
+    </div>
+    <div id="dFields" style="margin-top:12px;"></div>
+
+    <div class="divider"></div>
+
+    <label for="newStatus">เปลี่ยนสถานะเป็น</label>
+    <select id="newStatus"></select>
+    <button class="btn-primary" id="btnUpdate" style="width:100%;margin-top:12px;">บันทึกสถานะ</button>
+    <div class="hint" id="finishHint"></div>
+    <div class="msg" id="updateMsg"></div>
+  </div>
+
+  <p style="text-align:center;font-size:11.5px;color:var(--muted);">
+    หน้านี้แก้ไขได้เฉพาะ “สถานะงาน” เท่านั้น · ข้อมูลอื่นอยู่ใน SharePoint
+  </p>
+</div>
+
+<script>
+/* ===================== CONFIG ===================== */
+const CONFIG = {
+  // URL ของ Power Automate flow ใหม่ "CCC-FlowStaff" (HTTP trigger, sig URL)
+  // ⚠️ วางเอง — เป็นความลับ ห้ามแชร์สาธารณะ
+  flowUrl: "https://default54cf0b457b5b41b0bbebdddef5eae5.12.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/31/workflows/f6b691a67dfd4334833596c9eeff75aa/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=aD4p65ZLt1ePAJQlFow6V8J_qCnQ-xRgHhGuIHCTWZk",
+
+  // ชุดสถานะ — ตรงกับ Choice "Status" ใน SharePoint (ห้ามพิมพ์ผิด)
+  statuses: ["รับเรื่อง", "ดำเนินการ", "ส่งต่อ", "เสร็จสิ้น"],
+
+  // สถานะที่จะแจ้งเตือนลูกค้าอัตโนมัติเมื่อบันทึก (ให้ยืนยันก่อน)
+  notifyOnStatus: "เสร็จสิ้น",
+
+  // (ทางเลือก) รหัสผ่านง่าย ๆ กันคนนอก — เว้น "" = ปิดใช้งาน
+  pin: ""
+};
+/* ================================================== */
+
+let current = null; // item ที่กำลังแก้
+
+// ---- helpers: อ่านค่าจาก raw SharePoint item ----
+function val(o){ return o==null ? "" : (typeof o==="object" ? (o.Value ?? o.Title ?? o.Email ?? "") : o); }
+function g(it,k){ return it && it[k]!=null ? it[k] : ""; }
+function fmtDate(s){
+  if(!s) return "-";
+  const d = new Date(s);
+  if(isNaN(d)) return s;
+  return d.toLocaleString("th-TH",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
+}
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function show(el,cls,txt){ el.className="msg "+cls; el.textContent=txt; el.style.display="block"; }
+function hide(el){ el.style.display="none"; }
+
+async function callFlow(payload){
+  if(CONFIG.flowUrl.startsWith("PASTE")) throw new Error("ยังไม่ได้ตั้งค่า flowUrl ในไฟล์ (CONFIG.flowUrl)");
+  const r = await fetch(CONFIG.flowUrl,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(payload)
+  });
+  const text = await r.text();
+  let data; try{ data = text ? JSON.parse(text) : {}; }catch(e){ data = text; }
+  if(!r.ok) throw new Error("เซิร์ฟเวอร์ตอบกลับ "+r.status);
+  return data;
+}
+
+// ---- แสดงรายละเอียด 1 งาน ----
+function renderDetail(it){
+  current = it;
+  const st = val(g(it,"Status")) || "รับเรื่อง";
+  document.getElementById("dTicket").textContent = g(it,"Title") || "(ไม่มีเลขที่)";
+  const badge = document.getElementById("dBadge");
+  badge.textContent = st; badge.className = "badge b-"+st;
+
+  const rows = [
+    ["ประเภทเรื่อง", val(g(it,"ComplaintType"))],
+    ["ตำบล", val(g(it,"Tambon"))],
+    ["หมู่บ้าน", g(it,"Village")],
+    ["ผู้แจ้ง", g(it,"ContactName")],
+    ["เบอร์โทร", g(it,"ContactPhone")],
+    ["ช่องทาง", val(g(it,"IntakeChannel"))],
+    ["ผู้รับผิดชอบ", val(g(it,"AssignedTo"))],
+    ["รายละเอียด", g(it,"Description")],
+    ["วันที่แจ้ง", fmtDate(g(it,"Created"))]
+  ].filter(r=>r[1]!=="" && r[1]!=null);
+
+  document.getElementById("dFields").innerHTML = rows.map(r=>
+    `<div class="kv"><div class="k">${esc(r[0])}</div><div class="v">${esc(r[1])}</div></div>`
+  ).join("");
+
+  const sel = document.getElementById("newStatus");
+  sel.innerHTML = CONFIG.statuses.map(s=>`<option value="${esc(s)}"${s===st?" selected":""}>${esc(s)}</option>`).join("");
+  syncFinishHint();
+
+  hide(document.getElementById("updateMsg"));
+  document.getElementById("detailCard").classList.remove("hidden");
+  document.getElementById("detailCard").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function syncFinishHint(){
+  const sel = document.getElementById("newStatus");
+  const hint = document.getElementById("finishHint");
+  if(sel.value === CONFIG.notifyOnStatus){
+    hint.textContent = "⚠ เมื่อบันทึกเป็น \""+CONFIG.notifyOnStatus+"\" ระบบจะแจ้งเตือนลูกค้าและขอคะแนนโดยอัตโนมัติ";
+    hint.style.color = "var(--warn)";
+  }else{
+    hint.textContent = "";
+  }
+}
+
+// ---- ค้นหาด้วย Ticket ID ----
+async function doSearch(){
+  const q = document.getElementById("q").value.trim();
+  const msg = document.getElementById("searchMsg");
+  if(!q){ show(msg,"err","กรุณากรอกเลขที่เรื่อง"); return; }
+  hide(msg);
+  const btn = document.getElementById("btnSearch");
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  try{
+    const res = await callFlow({action:"get", ticketId:q});
+    const items = Array.isArray(res) ? res : (res.value || []);
+    if(!items.length){ show(msg,"err","ไม่พบเรื่องเลขที่ "+q); }
+    else{ document.getElementById("listCard").classList.add("hidden"); renderDetail(items[0]); }
+  }catch(e){ show(msg,"err","เกิดข้อผิดพลาด: "+e.message); }
+  finally{ btn.disabled=false; btn.textContent="ค้นหา"; }
+}
+
+// ---- แสดงรายการล่าสุด ----
+async function doList(){
+  const msg = document.getElementById("searchMsg");
+  hide(msg);
+  const btn = document.getElementById("btnList");
+  btn.disabled = true; btn.innerHTML = '<span class="spin" style="border-color:var(--navy);border-top-color:transparent"></span> กำลังโหลด';
+  try{
+    const res = await callFlow({action:"list"});
+    const items = Array.isArray(res) ? res : (res.value || []);
+    const box = document.getElementById("listBox");
+    if(!items.length){ box.innerHTML = '<p class="hint">ไม่มีรายการ</p>'; }
+    else{
+      box.innerHTML = items.map((it,i)=>{
+        const st = val(g(it,"Status"))||"รับเรื่อง";
+        return `<div class="li" data-i="${i}">
+          <div class="t">${esc(g(it,"Title"))} <span class="badge b-${st}" style="margin-left:4px">${esc(st)}</span></div>
+          <div class="m">${esc(val(g(it,"ComplaintType")))} · ${esc(val(g(it,"Tambon")))} · ${esc(fmtDate(g(it,"Created")))}</div>
+        </div>`;
+      }).join("");
+      box._items = items;
+      box.querySelectorAll(".li").forEach(el=>{
+        el.onclick = ()=>renderDetail(box._items[+el.dataset.i]);
+      });
+    }
+    document.getElementById("listCard").classList.remove("hidden");
+  }catch(e){ show(msg,"err","เกิดข้อผิดพลาด: "+e.message); }
+  finally{ btn.disabled=false; btn.textContent="แสดงรายการงานล่าสุด"; }
+}
+
+// ---- บันทึกสถานะ ----
+async function doUpdate(){
+  if(!current) return;
+  const newStatus = document.getElementById("newStatus").value;
+  const ticketId = g(current,"Title");
+  const msg = document.getElementById("updateMsg");
+
+  if(newStatus === CONFIG.notifyOnStatus){
+    if(!confirm("ยืนยันปิดงาน \""+ticketId+"\" เป็น \""+CONFIG.notifyOnStatus+"\"?\nระบบจะแจ้งเตือนลูกค้าและขอคะแนนอัตโนมัติ")) return;
+  }
+  hide(msg);
+  const btn = document.getElementById("btnUpdate");
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> กำลังบันทึก';
+  try{
+    const itemId = g(current,"ID") || g(current,"Id") || "";
+    await callFlow({action:"update", ticketId:ticketId, id:itemId, newStatus:newStatus});
+    show(msg,"ok","บันทึกสำเร็จ · "+ticketId+" → "+newStatus);
+    // อัปเดตหน้าจอทันที
+    if(typeof current.Status === "object" && current.Status) current.Status.Value = newStatus;
+    else current.Status = newStatus;
+    const badge = document.getElementById("dBadge");
+    badge.textContent = newStatus; badge.className="badge b-"+newStatus;
+  }catch(e){ show(msg,"err","บันทึกไม่สำเร็จ: "+e.message); }
+  finally{ btn.disabled=false; btn.textContent="บันทึกสถานะ"; }
+}
+
+// ---- events ----
+document.getElementById("btnSearch").onclick = doSearch;
+document.getElementById("btnList").onclick = doList;
+document.getElementById("btnUpdate").onclick = doUpdate;
+document.getElementById("newStatus").onchange = syncFinishHint;
+document.getElementById("q").addEventListener("keydown",e=>{ if(e.key==="Enter") doSearch(); });
+
+// ---- optional PIN gate ----
+if(CONFIG.pin){
+  const p = prompt("กรุณากรอกรหัสผ่านเจ้าหน้าที่");
+  if(p !== CONFIG.pin){ document.body.innerHTML = '<p style="text-align:center;padding:40px;color:#C0392B">รหัสไม่ถูกต้อง</p>'; }
+}
+</script>
+</body>
+</html>
