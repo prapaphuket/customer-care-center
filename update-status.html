@@ -149,6 +149,9 @@
       </select>
       <label for="editVillage" style="font-size:13px;font-weight:600;display:block;margin:8px 0 5px;">หมู่บ้าน</label>
       <select id="editVillage" disabled><option value="">— เลือกตำบลก่อน —</option></select>
+      <label for="editAssignee" style="font-size:13px;font-weight:600;display:block;margin:8px 0 5px;">ผู้รับผิดชอบ (ส่งต่อ)</label>
+      <select id="editAssignee"></select>
+      <div style="font-size:11.5px;color:#8a6d1e;margin-top:5px;">เปลี่ยนผู้รับผิดชอบ → ระบบจะแจ้งอีเมล + Teams ให้คนใหม่อัตโนมัติ</div>
     </div>
 
     <div class="divider"></div>
@@ -174,6 +177,15 @@ const CONFIG = {
 
   // ชุดสถานะ — ตรงกับ Choice "Status" ใน SharePoint (ห้ามพิมพ์ผิด)
   statuses: ["รับเรื่อง", "ดำเนินการ", "เสร็จสิ้น"],
+
+  // ผู้รับผิดชอบ (สำหรับส่งต่อเคสอีเมล) — ตาม SLA & Routing Master · อีเมลต้องตรงกับผู้ใช้ M365 จริง
+  responsibles: [
+    { label: "jutiporn (รับเรื่องด่านแรก)", email: "jutiporn.kr@aeu.co.th" },
+    { label: "puwadol (ผลิต / คุณภาพน้ำ)", email: "puwadol.ni@aeu.co.th" },
+    { label: "niwat (ส่งน้ำ / ท่อ / น้ำไม่ไหล)", email: "niwat.to@aeu.co.th" },
+    { label: "panwadee (จัดเก็บรายได้ / ค่าน้ำ)", email: "panwadee.du@aeu.co.th" },
+    { label: "ketsarin (บริการ / อื่นๆ)", email: "ketsarin.in@aeu.co.th" }
+  ],
 
   // สถานะที่จะแจ้งเตือนลูกค้าอัตโนมัติเมื่อบันทึก (ให้ยืนยันก่อน)
   notifyOnStatus: "เสร็จสิ้น",
@@ -271,6 +283,8 @@ function renderDetail(it){
     const et = document.getElementById("editTambon");
     et.value = (curT==="ไม้ขาว"||curT==="สาคู") ? curT : "รอระบุ";
     fillVillages(et.value, curV);
+    const curEmail = (it.AssignedTo && it.AssignedTo.Email) ? it.AssignedTo.Email.toLowerCase() : "";
+    document.getElementById("editAssignee").innerHTML = CONFIG.responsibles.map(r=>`<option value="${esc(r.email)}"${r.email.toLowerCase()===curEmail?" selected":""}>${esc(r.label)}</option>`).join("");
     locEdit.classList.remove("hidden");
   }else{
     locEdit.classList.add("hidden");
@@ -367,6 +381,7 @@ async function doUpdate(){
     if(emailLoc){
       payload.tambon = document.getElementById("editTambon").value;
       payload.village = document.getElementById("editVillage").value;
+      payload.assignedTo = document.getElementById("editAssignee").value;
     }
     await callFlow(payload);
     show(msg,"ok","บันทึกสำเร็จ · "+ticketId+" → "+newStatus);
