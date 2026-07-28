@@ -138,6 +138,19 @@
     </div>
     <div id="dFields" style="margin-top:12px;"></div>
 
+    <!-- ระบุพื้นที่ (เฉพาะเคสอีเมล) -->
+    <div id="locEdit" class="hidden" style="margin-top:14px;padding:12px;background:#FEF6E7;border:1px solid #F3E1B5;border-radius:9px;">
+      <div style="font-size:13px;font-weight:700;color:#B8741A;margin-bottom:8px;">📍 เคสอีเมล — ระบุพื้นที่ (เจ้าหน้าที่เลือก)</div>
+      <label for="editTambon" style="font-size:13px;font-weight:600;display:block;margin-bottom:5px;">ตำบล</label>
+      <select id="editTambon">
+        <option value="รอระบุ">— รอระบุ —</option>
+        <option value="ไม้ขาว">ไม้ขาว</option>
+        <option value="สาคู">สาคู</option>
+      </select>
+      <label for="editVillage" style="font-size:13px;font-weight:600;display:block;margin:8px 0 5px;">หมู่บ้าน</label>
+      <select id="editVillage" disabled><option value="">— เลือกตำบลก่อน —</option></select>
+    </div>
+
     <div class="divider"></div>
 
     <label for="newStatus">เปลี่ยนสถานะเป็น</label>
@@ -180,6 +193,23 @@ const CONFIG = {
 /* ================================================== */
 
 let current = null; // item ที่กำลังแก้
+
+// หมู่บ้านตามตำบล (สำหรับเคสอีเมลที่ต้องระบุพื้นที่)
+const VILLAGES = {
+  "ไม้ขาว": ["หมู่ 1 - บ้านหมากปรก","หมู่ 2 - บ้านคอเอน","หมู่ 3 - บ้านสวนมะพร้าว","หมู่ 4 - บ้านไม้ขาว","หมู่ 5 - บ้านท่าฉัตรไชย","หมู่ 6 - บ้านบ่อไทร","หมู่ 7 - บ้านหยิด"],
+  "สาคู":   ["หมู่ 1 - บ้านในยาง","หมู่ 2 - บ้านตรอกม่วง","หมู่ 3 - บ้านสาคู","หมู่ 4 - บ้านในทอน","หมู่ 5 - บ้านบางม่าเหลา"]
+};
+function fillVillages(tambon, selected){
+  const vs = document.getElementById("editVillage");
+  const list = VILLAGES[tambon];
+  if(list){
+    vs.innerHTML = '<option value="">— เลือกหมู่ที่ —</option>' + list.map(v=>`<option value="${esc(v)}"${v===selected?" selected":""}>${esc(v)}</option>`).join("");
+    vs.disabled = false;
+  }else{
+    vs.innerHTML = '<option value="รอระบุ">— รอระบุ —</option>';
+    vs.disabled = true;
+  }
+}
 
 // ---- helpers: อ่านค่าจาก raw SharePoint item ----
 function val(o){ return o==null ? "" : (typeof o==="object" ? (o.Value ?? o.Title ?? o.Email ?? "") : o); }
@@ -231,6 +261,20 @@ function renderDetail(it){
   document.getElementById("dFields").innerHTML = rows.map(r=>
     `<div class="kv"><div class="k">${esc(r[0])}</div><div class="v">${esc(r[1])}</div></div>`
   ).join("");
+
+  // เคสอีเมล → เปิดให้เจ้าหน้าที่ระบุตำบล/หมู่บ้าน (เคสอื่นล็อก)
+  const channel = val(g(it,"IntakeChannel"));
+  const locEdit = document.getElementById("locEdit");
+  if(channel === "อีเมล"){
+    const curT = val(g(it,"Tambon"));
+    const curV = g(it,"Village") || "";
+    const et = document.getElementById("editTambon");
+    et.value = (curT==="ไม้ขาว"||curT==="สาคู") ? curT : "รอระบุ";
+    fillVillages(et.value, curV);
+    locEdit.classList.remove("hidden");
+  }else{
+    locEdit.classList.add("hidden");
+  }
 
   const sel = document.getElementById("newStatus");
   sel.innerHTML = CONFIG.statuses.map(s=>`<option value="${esc(s)}"${s===st?" selected":""}>${esc(s)}</option>`).join("");
@@ -308,12 +352,23 @@ async function doUpdate(){
   if(newStatus === CONFIG.notifyOnStatus){
     if(!confirm("ยืนยันปิดงาน \""+ticketId+"\" เป็น \""+CONFIG.notifyOnStatus+"\"?\nระบบจะแจ้งเตือนลูกค้าและขอคะแนนอัตโนมัติ")) return;
   }
+  const emailLoc = !document.getElementById("locEdit").classList.contains("hidden");
+  if(emailLoc){
+    const t = document.getElementById("editTambon").value;
+    const v = document.getElementById("editVillage").value;
+    if((t==="ไม้ขาว"||t==="สาคู") && !v){ show(msg,"err","กรุณาเลือกหมู่บ้าน"); return; }
+  }
   hide(msg);
   const btn = document.getElementById("btnUpdate");
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span> กำลังบันทึก';
   try{
     const itemId = g(current,"ID") || g(current,"Id") || "";
-    await callFlow({action:"update", ticketId:ticketId, id:String(itemId), newStatus:newStatus});
+    const payload = {action:"update", ticketId:ticketId, id:String(itemId), newStatus:newStatus};
+    if(emailLoc){
+      payload.tambon = document.getElementById("editTambon").value;
+      payload.village = document.getElementById("editVillage").value;
+    }
+    await callFlow(payload);
     show(msg,"ok","บันทึกสำเร็จ · "+ticketId+" → "+newStatus);
     // อัปเดตหน้าจอทันที
     if(typeof current.Status === "object" && current.Status) current.Status.Value = newStatus;
@@ -329,6 +384,7 @@ document.getElementById("btnSearch").onclick = doSearch;
 document.getElementById("btnList").onclick = doList;
 document.getElementById("btnUpdate").onclick = doUpdate;
 document.getElementById("newStatus").onchange = syncFinishHint;
+document.getElementById("editTambon").onchange = function(){ fillVillages(this.value, ""); };
 document.getElementById("q").addEventListener("keydown",e=>{ if(e.key==="Enter") doSearch(); });
 
 // ---- เข้าสู่ระบบด้วย Microsoft 365 (MSAL) + จำกัดกลุ่ม admin_ccc ----
