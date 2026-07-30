@@ -92,7 +92,7 @@
   <div class="appbar">
     <div>
       <h1>เก็บคะแนน (เจ้าหน้าที่)</h1>
-      <div class="sub">สำหรับเคสช่องทางโทรศัพท์ / เคาน์เตอร์เท่านั้น</div>
+      <div class="sub">สำหรับเคสช่องทางโทรศัพท์ / เคาน์เตอร์ / Facebook เท่านั้น</div>
     </div>
     <div class="userbar" id="userBar" style="display:none;">
       <span id="userName"></span>
@@ -113,7 +113,7 @@
 
   <!-- รายการรอเก็บ -->
   <div class="card hidden" id="listCard">
-    <label class="f">เลือกเคสที่ต้องการเก็บคะแนน (เฉพาะโทรศัพท์/เคาน์เตอร์ ที่ยังไม่มีคะแนน)</label>
+    <label class="f">เลือกเคสที่ต้องการเก็บคะแนน (เฉพาะโทรศัพท์/เคาน์เตอร์/Facebook ที่ยังไม่มีคะแนน)</label>
     <div id="listBox"></div>
   </div>
 
@@ -169,7 +169,7 @@
   </div>
 
   <p style="text-align:center;font-size:11.5px;color:var(--muted);padding:0 16px 18px;">
-    หน้านี้ใช้เก็บคะแนนแทนลูกค้ากรณีรับเรื่องทางโทรศัพท์/เคาน์เตอร์ · เคสทาง LINE/อีเมล ลูกค้าให้คะแนนเอง
+    หน้านี้ใช้เก็บคะแนนแทนลูกค้ากรณีรับเรื่องทางโทรศัพท์/เคาน์เตอร์/Facebook · เคสทาง LINE/อีเมล ลูกค้าให้คะแนนเอง
   </p>
 </div>
 
@@ -184,7 +184,8 @@ const CONFIG = {
   flow3Url: "https://default54cf0b457b5b41b0bbebdddef5eae5.12.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e79ef2109eb94e4488c15c24c61c72f7/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=dbIRCX3BTO9PnuKdpHCjk5XMpHpADU1f-wowBgbWI_g",
 
   // ช่องทางที่อนุญาตให้เจ้าหน้าที่เก็บคะแนนแทน (LINE/อีเมล ลูกค้าให้เอง จึงไม่รวม)
-  allowedChannels: ["โทรศัพท์", "เคาน์เตอร์"],
+  // Facebook = เจ้าหน้าที่ติดต่อกลับทาง Messenger/โทร แล้วกรอกคะแนนแทน
+  allowedChannels: ["โทรศัพท์", "เคาน์เตอร์", "Facebook"],
 
   // ===== เข้าสู่ระบบด้วย Microsoft 365 =====
   auth: {
@@ -326,7 +327,7 @@ async function submitRating(){
     resolution: state.resolution,
     comment: comment,
     lineUserId: "",
-    feedbackSource: "เจ้าหน้าที่เก็บ (โทร/เคาน์เตอร์)",
+    feedbackSource: "เจ้าหน้าที่เก็บ (โทร/เคาน์เตอร์/Facebook)",
     ratingBy: state.ratingBy
   };
   document.getElementById("overlay").style.display="flex";

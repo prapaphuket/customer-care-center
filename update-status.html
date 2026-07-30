@@ -140,7 +140,7 @@
 
     <!-- ระบุพื้นที่ (เฉพาะเคสอีเมล) -->
     <div id="locEdit" class="hidden" style="margin-top:14px;padding:12px;background:#FEF6E7;border:1px solid #F3E1B5;border-radius:9px;">
-      <div style="font-size:13px;font-weight:700;color:#B8741A;margin-bottom:8px;">📍 เคสอีเมล — ระบุพื้นที่ (เจ้าหน้าที่เลือก)</div>
+      <div style="font-size:13px;font-weight:700;color:#B8741A;margin-bottom:8px;">📍 เคสอีเมล — ระบุพื้นที่ + จัดประเภทเรื่อง (เจ้าหน้าที่)</div>
       <label for="editTambon" style="font-size:13px;font-weight:600;display:block;margin-bottom:5px;">ตำบล</label>
       <select id="editTambon">
         <option value="รอระบุ">— รอระบุ —</option>
@@ -149,9 +149,9 @@
       </select>
       <label for="editVillage" style="font-size:13px;font-weight:600;display:block;margin:8px 0 5px;">หมู่บ้าน</label>
       <select id="editVillage" disabled><option value="">— เลือกตำบลก่อน —</option></select>
-      <label for="editAssignee" style="font-size:13px;font-weight:600;display:block;margin:8px 0 5px;">ผู้รับผิดชอบ (ส่งต่อ)</label>
-      <select id="editAssignee"></select>
-      <div style="font-size:11.5px;color:#8a6d1e;margin-top:5px;">เปลี่ยนผู้รับผิดชอบ → ระบบจะแจ้งอีเมล + Teams ให้คนใหม่อัตโนมัติ</div>
+      <label for="editComplaintType" style="font-size:13px;font-weight:600;display:block;margin:8px 0 5px;">ประเภทเรื่อง</label>
+      <select id="editComplaintType"></select>
+      <div style="font-size:11.5px;color:#8a6d1e;margin-top:5px;">เลือกประเภทเรื่อง → ระบบจะมอบหมายผู้รับผิดชอบ + คำนวณ SLA ให้อัตโนมัติ แล้วแจ้งอีเมล + Teams ให้ผู้รับงาน</div>
     </div>
 
     <div class="divider"></div>
@@ -178,13 +178,15 @@ const CONFIG = {
   // ชุดสถานะ — ตรงกับ Choice "Status" ใน SharePoint (ห้ามพิมพ์ผิด)
   statuses: ["รับเรื่อง", "ดำเนินการ", "เสร็จสิ้น"],
 
-  // ผู้รับผิดชอบ (สำหรับส่งต่อเคสอีเมล) — ตาม SLA & Routing Master · อีเมลต้องตรงกับผู้ใช้ M365 จริง
-  responsibles: [
-    { label: "jutiporn (รับเรื่องด่านแรก)", email: "jutiporn.kr@aeu.co.th" },
-    { label: "puwadol (ผลิต / คุณภาพน้ำ)", email: "puwadol.ni@aeu.co.th" },
-    { label: "niwat (ส่งน้ำ / ท่อ / น้ำไม่ไหล)", email: "niwat.to@aeu.co.th" },
-    { label: "panwadee (จัดเก็บรายได้ / ค่าน้ำ)", email: "panwadee.du@aeu.co.th" },
-    { label: "ketsarin (บริการ / อื่นๆ)", email: "ketsarin.in@aeu.co.th" }
+  // ประเภทเรื่อง (สำหรับจัดประเภทเคสอีเมล) — value ต้องตรงกับ Choice ComplaintType + Title ใน SLA & Routing Master เป๊ะ
+  // ระบบจะดึงผู้รับผิดชอบ + คำนวณ SLA จาก Master ตามประเภทที่เลือกให้อัตโนมัติ
+  complaintTypes: [
+    { value: "คุณภาพน้ำ", label: "คุณภาพน้ำ" },
+    { value: "ท่อรั่ว/แตก", label: "ท่อรั่ว / แตก" },
+    { value: "น้ำไม่ไหล/ไหลอ่อน", label: "น้ำไม่ไหล / ไหลอ่อน" },
+    { value: "ชำระค่าน้ำ/ใบแจ้งหนี้", label: "ชำระค่าน้ำ / ใบแจ้งหนี้" },
+    { value: "บริการ/พนักงาน", label: "บริการ / พนักงาน" },
+    { value: "อื่นๆ", label: "อื่นๆ" }
   ],
 
   // สถานะที่จะแจ้งเตือนลูกค้าอัตโนมัติเมื่อบันทึก (ให้ยืนยันก่อน)
@@ -283,8 +285,8 @@ function renderDetail(it){
     const et = document.getElementById("editTambon");
     et.value = (curT==="ไม้ขาว"||curT==="สาคู") ? curT : "รอระบุ";
     fillVillages(et.value, curV);
-    const curEmail = (it.AssignedTo && it.AssignedTo.Email) ? it.AssignedTo.Email.toLowerCase() : "";
-    document.getElementById("editAssignee").innerHTML = CONFIG.responsibles.map(r=>`<option value="${esc(r.email)}"${r.email.toLowerCase()===curEmail?" selected":""}>${esc(r.label)}</option>`).join("");
+    const curType = val(g(it,"ComplaintType"));
+    document.getElementById("editComplaintType").innerHTML = CONFIG.complaintTypes.map(c=>`<option value="${esc(c.value)}"${c.value===curType?" selected":""}>${esc(c.label)}</option>`).join("");
     locEdit.classList.remove("hidden");
   }else{
     locEdit.classList.add("hidden");
@@ -381,7 +383,8 @@ async function doUpdate(){
     if(emailLoc){
       payload.tambon = document.getElementById("editTambon").value;
       payload.village = document.getElementById("editVillage").value;
-      payload.assignedTo = document.getElementById("editAssignee").value;
+      payload.complaintType = document.getElementById("editComplaintType").value;
+      payload.createdDate = g(current,"Created"); // ฐานเวลาเดิมสำหรับคำนวณ SLA ใหม่
     }
     await callFlow(payload);
     show(msg,"ok","บันทึกสำเร็จ · "+ticketId+" → "+newStatus);
