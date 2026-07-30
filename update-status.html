@@ -405,6 +405,12 @@ document.getElementById("newStatus").onchange = syncFinishHint;
 document.getElementById("editTambon").onchange = function(){ fillVillages(this.value, ""); };
 document.getElementById("q").addEventListener("keydown",e=>{ if(e.key==="Enter") doSearch(); });
 
+// ---- รับพารามิเตอร์ ?tid= จากลิงก์แจ้งเตือน (เก็บข้ามการ redirect ล็อกอิน) ----
+try{ const _tid = new URLSearchParams(location.search).get("tid"); if(_tid) sessionStorage.setItem("ccc_tid", _tid); }catch(e){}
+function autoLoadFromLink(){
+  try{ const tid = sessionStorage.getItem("ccc_tid"); if(tid){ sessionStorage.removeItem("ccc_tid"); const qEl=document.getElementById("q"); if(qEl){ qEl.value=tid; doSearch(); } } }catch(e){}
+}
+
 // ---- เข้าสู่ระบบด้วย Microsoft 365 (MSAL) + จำกัดกลุ่ม admin_ccc ----
 (function(){
   const A = CONFIG.auth || {};
@@ -413,7 +419,7 @@ document.getElementById("q").addEventListener("keydown",e=>{ if(e.key==="Enter")
   const authMsg = document.getElementById("authMsg");
 
   // ปิดระบบล็อกอิน (auth.enabled=false) → แสดงหน้าเลย
-  if(!A.enabled){ gate.style.display="none"; appEl.style.display=""; return; }
+  if(!A.enabled){ gate.style.display="none"; appEl.style.display=""; autoLoadFromLink(); return; }
 
   if(!window.msal){
     authMsg.className="err";
@@ -432,6 +438,7 @@ document.getElementById("q").addEventListener("keydown",e=>{ if(e.key==="Enter")
     document.getElementById("logoutBtn").onclick = ()=> app.logoutRedirect();
     gate.style.display="none";
     appEl.style.display="";
+    autoLoadFromLink();
   }
   function deny(text){
     authMsg.className="err";
