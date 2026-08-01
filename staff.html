@@ -229,7 +229,10 @@
 
       <div class="ticket">
         <div style="color:var(--muted);font-size:12px;">หมายเลขอ้างอิง</div>
-        <div class="tid" id="resTicket">CC-0000-00-0000</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;">
+          <div class="tid" id="resTicket">CC-0000-00-0000</div>
+          <button type="button" id="copyBtn" onclick="copyTicket()" style="border:1px solid var(--border,#d0d5dd);background:#fff;border-radius:8px;padding:5px 12px;font-size:13px;cursor:pointer;color:var(--brand,#3C549A);white-space:nowrap;">📋 คัดลอก</button>
+        </div>
         <div class="badge" id="resStatus">รับเรื่องแล้ว</div>
       </div>
 
@@ -391,6 +394,21 @@ function rmPhoto(i){ state.photos.splice(i,1); renderPhotos(); }
 /* ---------- Helpers ---------- */
 function showErr(id){ document.getElementById(id).style.display = "block"; }
 function hideErr(id){ document.getElementById(id).style.display = "none"; }
+function copyTicket(){
+  const t = document.getElementById("resTicket").textContent.trim();
+  const btn = document.getElementById("copyBtn");
+  const done = () => { btn.textContent = "✓ คัดลอกแล้ว"; setTimeout(()=>{ btn.textContent = "📋 คัดลอก"; }, 1500); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(done).catch(()=>fallbackCopy(t, done));
+  } else { fallbackCopy(t, done); }
+}
+function fallbackCopy(t, cb){
+  const ta = document.createElement("textarea");
+  ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try { document.execCommand("copy"); } catch(e) {}
+  document.body.removeChild(ta); if (cb) cb();
+}
 function clearForm(){
   state.channel=""; state.complaintType=""; state.photos=[]; state.gps="";
   { const gl=document.getElementById("gpsLabel"); if(gl) gl.textContent="ยังไม่ได้ระบุพิกัด"; }
