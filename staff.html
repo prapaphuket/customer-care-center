@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <title>เปิดใบงาน (เจ้าหน้าที่) · Customer Care Center</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   :root{
     --navy:#3C549A; --navy-dark:#324684; --aqua:#2BB7C4;
@@ -70,6 +72,26 @@
   #authMsg{margin-top:16px;font-size:13px;line-height:1.5;}
   #authMsg.err{color:#C0392B;}
   .appbar .logout{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.45);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px;display:none;}
+  /* location / GPS */
+  .gps{display:flex;align-items:center;gap:10px;border:1px dashed var(--border);border-radius:10px;padding:12px;}
+  .gps .ic{width:34px;height:34px;border-radius:50%;background:#EEF1FA;color:var(--navy);display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto;}
+  .gps .txt{flex:1;font-size:13px;color:var(--muted);}
+  .gps .txt b{color:var(--text);display:block;font-size:14px;}
+  .gps-actions{display:flex;gap:8px;margin-top:8px;}
+  .gps-btn{flex:1;border:1px solid var(--border);background:#fff;color:var(--navy);border-radius:9px;padding:9px 6px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;}
+  .gps-btn:hover{background:#EEF1FA;border-color:var(--navy);}
+  .map-modal{display:none;position:fixed;inset:0;background:rgba(20,26,45,.55);z-index:200;align-items:flex-end;justify-content:center;}
+  .map-sheet{background:#fff;width:100%;max-width:520px;border-radius:16px 16px 0 0;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;}
+  .map-head{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;background:var(--navy);color:#fff;}
+  .map-head b{font-size:15px;}
+  .map-x{background:none;border:none;color:#fff;font-size:19px;cursor:pointer;line-height:1;}
+  #mapEl{width:100%;height:56vh;background:#e8ecf3;}
+  .map-foot{padding:12px 16px 16px;}
+  .map-coord{font-size:14px;font-weight:600;color:var(--text);}
+  .map-hint{font-size:12px;color:var(--muted);margin:2px 0 10px;}
+  .map-btns{display:flex;gap:8px;}
+  .map-confirm{flex:2;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:11px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;}
+  .map-confirm:hover{background:var(--navy-dark);}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
 </head>
@@ -149,6 +171,16 @@
         <option value="">— เลือกตำบลก่อน —</option>
       </select>
       <div class="err" id="errVillage">กรุณาเลือกหมู่ที่</div>
+
+      <label class="f">ตำแหน่งที่เกิดเหตุ</label>
+      <div class="gps">
+        <div class="ic">📍</div>
+        <div class="txt"><b id="gpsLabel">ยังไม่ได้ระบุพิกัด</b>เลือกวิธีระบุตำแหน่งด้านล่าง</div>
+      </div>
+      <div class="gps-actions">
+        <button type="button" class="gps-btn" onclick="getGPS()">📡 ตำแหน่งปัจจุบัน</button>
+        <button type="button" class="gps-btn" onclick="openMapPicker()">🗺️ ปักหมุดบนแผนที่</button>
+      </div>
 
       <label class="f">ชื่อ-นามสกุลลูกค้า <span class="req">*</span></label>
       <input type="text" id="contactName" maxlength="80" placeholder="ชื่อ-นามสกุล" />
@@ -233,7 +265,7 @@ const CONFIG = {
   }
 };
 
-let state = { channel:"", complaintType:"", photos:[] };
+let state = { channel:"", complaintType:"", photos:[], gps:"" };
 
 /* ---------- Chips ---------- */
 document.getElementById("channelChips").addEventListener("click", (e) => {
@@ -319,7 +351,8 @@ function rmPhoto(i){ state.photos.splice(i,1); renderPhotos(); }
 function showErr(id){ document.getElementById(id).style.display = "block"; }
 function hideErr(id){ document.getElementById(id).style.display = "none"; }
 function clearForm(){
-  state.channel=""; state.complaintType=""; state.photos=[];
+  state.channel=""; state.complaintType=""; state.photos=[]; state.gps="";
+  { const gl=document.getElementById("gpsLabel"); if(gl) gl.textContent="ยังไม่ได้ระบุพิกัด"; }
   document.querySelectorAll("#channelChips .chip").forEach(x=>x.classList.remove("active"));
   document.getElementById("complaintType").value="";
   ["description","contactName","contactPhone","customerCode"].forEach(id=>document.getElementById(id).value="");
@@ -332,6 +365,47 @@ function clearForm(){
 }
 
 /* ---------- Submit ---------- */
+/* ---------- Location: GPS + ปักหมุดเอง (Leaflet + OpenStreetMap) ---------- */
+function getGPS(){
+  if(!navigator.geolocation){ alert("อุปกรณ์ไม่รองรับการระบุตำแหน่ง"); return; }
+  document.getElementById("gpsLabel").textContent = "กำลังระบุพิกัด...";
+  navigator.geolocation.getCurrentPosition(
+    (pos)=>{ const la=pos.coords.latitude.toFixed(6), lo=pos.coords.longitude.toFixed(6);
+      state.gps = la+","+lo; document.getElementById("gpsLabel").textContent = "พิกัด: "+state.gps; },
+    ()=>{ document.getElementById("gpsLabel").textContent = "ไม่สามารถระบุพิกัดได้ (ตรวจสอบสิทธิ์ตำแหน่ง)"; },
+    { enableHighAccuracy:true, timeout:10000 }
+  );
+}
+let _map=null, _marker=null;
+const MAP_DEFAULT=[8.108, 98.301];  // ต.สาคู/ไม้ขาว อ.ถลาง จ.ภูเก็ต (โดยประมาณ)
+function openMapPicker(){ document.getElementById("mapModal").style.display="flex"; setTimeout(initMap,60); }
+function closeMapPicker(){ document.getElementById("mapModal").style.display="none"; }
+function initMap(){
+  let center=MAP_DEFAULT, zoom=13;
+  if(state.gps){ const pp=state.gps.split(","); if(pp.length===2 && !isNaN(+pp[0])){ center=[+pp[0],+pp[1]]; zoom=16; } }
+  if(!_map){
+    _map=L.map("mapEl").setView(center, zoom);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19, attribution:"© OpenStreetMap"}).addTo(_map);
+    _marker=L.marker(center,{draggable:true}).addTo(_map);
+    _map.on("click", e=>{ _marker.setLatLng(e.latlng); updatePickLabel(e.latlng); });
+    _marker.on("dragend", ()=>updatePickLabel(_marker.getLatLng()));
+  } else { _map.setView(center, zoom); _marker.setLatLng(center); }
+  _map.invalidateSize(); updatePickLabel(_marker.getLatLng());
+}
+function updatePickLabel(ll){ document.getElementById("pickCoord").textContent = ll.lat.toFixed(6)+", "+ll.lng.toFixed(6); }
+function useMyLocationOnMap(){
+  if(!navigator.geolocation){ alert("อุปกรณ์ไม่รองรับการระบุตำแหน่ง"); return; }
+  navigator.geolocation.getCurrentPosition(p=>{ const ll=L.latLng(p.coords.latitude,p.coords.longitude);
+    _map.setView(ll,16); _marker.setLatLng(ll); updatePickLabel(ll); },
+    ()=>alert("ไม่สามารถระบุตำแหน่งปัจจุบันได้"), { enableHighAccuracy:true, timeout:10000 });
+}
+function confirmPick(){
+  const ll=_marker.getLatLng();
+  state.gps = ll.lat.toFixed(6)+","+ll.lng.toFixed(6);
+  document.getElementById("gpsLabel").textContent = "พิกัด (ปักหมุด): "+state.gps;
+  closeMapPicker();
+}
+
 async function submitForm(){
   const description = document.getElementById("description").value.trim();
   const tambon = document.getElementById("tambon").value;
@@ -361,7 +435,7 @@ async function submitForm(){
     description: description,
     tambon: tambon,
     village: village,
-    gpsLocation: "",
+    gpsLocation: state.gps,
     contactName: contactName,
     contactPhone: contactPhone,
     pdpaConsent: pdpaConsent ? "ยินยอม (แจ้งผ่านเจ้าหน้าที่)" : "",
@@ -462,5 +536,24 @@ function showSuccess(data, payload){
   })();
 })();
 </script>
+
+<!-- ===== Map picker modal (ปักหมุดตำแหน่งเอง) ===== -->
+<div id="mapModal" class="map-modal">
+  <div class="map-sheet">
+    <div class="map-head">
+      <b>ปักหมุดตำแหน่งที่เกิดเหตุ</b>
+      <button type="button" class="map-x" onclick="closeMapPicker()" aria-label="ปิด">✕</button>
+    </div>
+    <div id="mapEl"></div>
+    <div class="map-foot">
+      <div class="map-coord">พิกัด: <span id="pickCoord">—</span></div>
+      <div class="map-hint">แตะบนแผนที่ หรือลากหมุด เพื่อเลือกตำแหน่งที่ลูกค้าแจ้ง</div>
+      <div class="map-btns">
+        <button type="button" class="gps-btn" onclick="useMyLocationOnMap()">📡 ตำแหน่งฉัน</button>
+        <button type="button" class="map-confirm" onclick="confirmPick()">ยืนยันตำแหน่งนี้</button>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
