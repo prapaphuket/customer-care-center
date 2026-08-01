@@ -142,13 +142,7 @@
 
       <label class="f">ประเภทเรื่อง <span class="req">*</span></label>
       <select id="complaintType">
-        <option value="">— เลือกประเภทเรื่อง —</option>
-        <option value="คุณภาพน้ำ">คุณภาพน้ำ</option>
-        <option value="ท่อรั่ว/แตก">ท่อรั่ว / แตก</option>
-        <option value="น้ำไม่ไหล/ไหลอ่อน">น้ำไม่ไหล / ไหลอ่อน</option>
-        <option value="ชำระค่าน้ำ/ใบแจ้งหนี้">ชำระค่าน้ำ / ใบแจ้งหนี้</option>
-        <option value="บริการ/พนักงาน">บริการ / พนักงาน</option>
-        <option value="อื่นๆ">อื่นๆ</option>
+        <option value="">— เลือกประเภทบริการก่อน —</option>
       </select>
       <div class="err" id="errType">กรุณาเลือกประเภทเรื่อง</div>
 
@@ -279,6 +273,35 @@ document.getElementById("complaintType").addEventListener("change", (e) => {
   if (state.complaintType) hideErr("errType");
 });
 
+/* ---------- ประเภทเรื่อง เปลี่ยนตามประเภทบริการ (cascading) ---------- */
+const COMPLAINT_BY_SERVICE = {
+  feedback: [   // ร้องเรียน / แจ้งปัญหา
+    ["คุณภาพน้ำ","คุณภาพน้ำ"],
+    ["ชำระค่าน้ำ/ใบแจ้งหนี้","ชำระค่าน้ำ / ใบแจ้งหนี้"],
+    ["บริการ/พนักงาน","บริการ / พนักงาน"],
+    ["อื่นๆ","อื่นๆ"]
+  ],
+  repair: [     // แจ้งซ่อม-บำรุงรักษา
+    ["ท่อรั่ว/แตก","ท่อประปารั่ว / แตก"],
+    ["น้ำไม่ไหล/ไหลอ่อน","น้ำไม่ไหล / ไหลอ่อน"],
+    ["มาตรวัดน้ำชำรุด","มาตรวัดน้ำ (มิเตอร์) ชำรุด"],
+    ["น้ำรั่วหน้ามาตร","น้ำรั่วบริเวณ / หน้ามาตรวัดน้ำ"],
+    ["ฝาบ่อ/ประตูน้ำชำรุด","ฝาท่อ / ฝาบ่อ / ประตูน้ำชำรุด"],
+    ["แรงดันน้ำผิดปกติ","แรงดันน้ำผิดปกติ (สูง/ต่ำ)"],
+    ["อื่นๆ","อื่นๆ (งานซ่อม)"]
+  ]
+};
+function fillComplaintTypes(){
+  const svc = document.getElementById("serviceType").value;
+  const list = COMPLAINT_BY_SERVICE[svc] || [];
+  const sel = document.getElementById("complaintType");
+  sel.innerHTML = '<option value="">— เลือกประเภทเรื่อง —</option>' +
+    list.map(o => `<option value="${o[0]}">${o[1]}</option>`).join("");
+  state.complaintType = "";
+}
+document.getElementById("serviceType").addEventListener("change", fillComplaintTypes);
+fillComplaintTypes();   // init ตามค่า default (ร้องเรียน)
+
 /* ---------- Village dropdown ---------- */
 const VILLAGES = {
   "ไม้ขาว": ["หมู่ 1 - บ้านหมากปรก","หมู่ 2 - บ้านคอเอน","หมู่ 3 - บ้านสวนมะพร้าว","หมู่ 4 - บ้านไม้ขาว","หมู่ 5 - บ้านท่าฉัตรไชย","หมู่ 6 - บ้านบ่อไทร","หมู่ 7 - บ้านหยิด"],
@@ -357,6 +380,7 @@ function clearForm(){
   ["description","contactName","contactPhone","customerCode"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("pdpaConsent").checked=false;
   document.getElementById("serviceType").value="feedback";
+  fillComplaintTypes();
   document.getElementById("tambon").value="";
   const vsel=document.getElementById("village"); vsel.innerHTML='<option value="">— เลือกตำบลก่อน —</option>'; vsel.disabled=true;
   document.getElementById("cnt").textContent="0";
