@@ -63,6 +63,23 @@
   .kv .k{width:120px;color:var(--muted);flex-shrink:0;}
   .kv .v{flex:1;word-break:break-word;}
   .divider{height:1px;background:var(--line);margin:16px 0;}
+  /* SLA status bar */
+  .sla{margin-top:13px;border-radius:10px;padding:11px 13px;border:1px solid;display:flex;flex-direction:column;gap:7px;}
+  .sla .row1{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;}
+  .sla .dot{width:11px;height:11px;border-radius:50%;flex:0 0 auto;}
+  .sla .track{height:8px;border-radius:5px;background:#E5E9F0;overflow:hidden;}
+  .sla .fill{height:100%;border-radius:5px;transition:width .3s;}
+  .sla .sub{font-size:12px;color:var(--muted);line-height:1.45;}
+  .sla-green{background:#EAF7EF;border-color:#BCE6CD;}
+  .sla-green .row1{color:#177A46;} .sla-green .dot,.sla-green .fill{background:#1E9E5A;}
+  .sla-yellow{background:#FEF6E7;border-color:#F3E1B5;}
+  .sla-yellow .row1{color:#9A6410;} .sla-yellow .dot,.sla-yellow .fill{background:#E0A526;}
+  .sla-red{background:#FDECEA;border-color:#F5C6C0;}
+  .sla-red .row1{color:#A32B20;} .sla-red .dot,.sla-red .fill{background:#D0392B;}
+  .sla-grey{background:#F2F4F8;border-color:#E1E6EF;}
+  .sla-grey .row1{color:#5A6478;} .sla-grey .dot,.sla-grey .fill{background:#8A93A6;}
+  .sla-done{background:#EAF3FB;border-color:#C3DDF3;}
+  .sla-done .row1{color:#1C5FA8;} .sla-done .dot,.sla-done .fill{background:#2E7CD1;}
   /* list */
   .li{border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin-bottom:8px;cursor:pointer;transition:.12s;}
   .li:hover{border-color:var(--navy);background:#FAFBFF;}
@@ -137,6 +154,7 @@
       <span class="badge" id="dBadge"></span>
     </div>
     <div id="dFields" style="margin-top:12px;"></div>
+    <div id="slaBar"></div>
 
     <!-- ระบุพื้นที่ (เฉพาะเคสอีเมล) -->
     <div id="locEdit" class="hidden" style="margin-top:14px;padding:12px;background:#FEF6E7;border:1px solid #F3E1B5;border-radius:9px;">
@@ -276,6 +294,8 @@ function renderDetail(it){
     `<div class="kv"><div class="k">${esc(r[0])}</div><div class="v">${esc(r[1])}</div></div>`
   ).join("");
 
+  renderSLA(it);
+
   // เคสอีเมล → เปิดให้เจ้าหน้าที่ระบุตำบล/หมู่บ้าน (เคสอื่นล็อก)
   const channel = val(g(it,"IntakeChannel"));
   const locEdit = document.getElementById("locEdit");
@@ -299,6 +319,62 @@ function renderDetail(it){
   hide(document.getElementById("updateMsg"));
   document.getElementById("detailCard").classList.remove("hidden");
   document.getElementById("detailCard").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+// ---- แถบสถานะ SLA (เขียว=ในกำหนด · เหลือง=ใกล้ครบ · แดง=เกิน) ----
+function fmtDur(ms){
+  const H=3600000, D=86400000;
+  if(ms>=D){ const d=Math.floor(ms/D), h=Math.round((ms%D)/H); return d+" วัน"+(h?" "+h+" ชม.":""); }
+  const h=Math.floor(ms/H), m=Math.round((ms%H)/60000);
+  return h? h+" ชม."+(m?" "+m+" นาที":"") : Math.max(m,1)+" นาที";
+}
+function renderSLA(it){
+  const el=document.getElementById("slaBar");
+  if(!el) return;
+  const st=val(g(it,"Status"))||"รับเรื่อง";
+  const created=g(it,"Created")?new Date(g(it,"Created")):null;
+  const due=g(it,"DueDate")?new Date(g(it,"DueDate")):null;
+  const ack=g(it,"AckDueDate")?new Date(g(it,"AckDueDate")):null;
+  const closed=g(it,"ClosedDate")?new Date(g(it,"ClosedDate")):null;
+  const now=new Date();
+  let cls, label, sub="", pct=0;
+
+  if(st==="เสร็จสิ้น"){
+    if(due && closed){
+      const late = closed>due;
+      cls = late?"sla-red":"sla-done";
+      label = late? "ปิดงานล่าช้า (เกินกำหนด SLA)" : "ปิดงานภายในกำหนด ✓";
+      sub = "ปิดงานเมื่อ "+fmtDate(g(it,"ClosedDate"))+" · ครบกำหนด "+fmtDate(g(it,"DueDate"));
+    } else {
+      cls="sla-done"; label="ปิดงานแล้ว ✓";
+      sub = closed? "ปิดงานเมื่อ "+fmtDate(g(it,"ClosedDate")) : "";
+    }
+    pct=100;
+  } else if(!due){
+    cls="sla-grey"; label="ยังไม่ได้กำหนด SLA";
+    sub="เคสนี้ยังไม่ถูกมอบหมาย/คำนวณกำหนดเวลา (เช่น เคสอีเมลที่ยังไม่ระบุประเภท)"; pct=0;
+  } else {
+    const total = created ? (due-created) : 0;
+    const elapsed = created ? (now-created) : 0;
+    pct = total>0 ? Math.max(0, Math.min(100, elapsed/total*100)) : 100;
+    const msLeft = due - now, D=86400000;
+    if(msLeft < 0){
+      cls="sla-red"; label="เกินกำหนด SLA แล้ว";
+      sub="เลยกำหนดมา "+fmtDur(-msLeft)+" · ครบกำหนด "+fmtDate(g(it,"DueDate")); pct=100;
+    } else if(msLeft <= D){
+      cls="sla-yellow"; label="ใกล้ครบกำหนด SLA";
+      sub="เหลืออีก "+fmtDur(msLeft)+" · ครบกำหนด "+fmtDate(g(it,"DueDate"));
+    } else {
+      cls="sla-green"; label="อยู่ในกำหนด SLA";
+      sub="เหลืออีก "+fmtDur(msLeft)+" · ครบกำหนด "+fmtDate(g(it,"DueDate"));
+    }
+    if(ack && st==="รับเรื่อง" && now>ack){ sub += " · ⚠ เกินกำหนดตอบรับแล้ว"; }
+  }
+  el.className="sla "+cls;
+  el.innerHTML =
+    `<div class="row1"><span class="dot"></span>${esc(label)}</div>`+
+    `<div class="track"><div class="fill" style="width:${pct.toFixed(0)}%"></div></div>`+
+    (sub? `<div class="sub">${esc(sub)}</div>` : "");
 }
 
 function syncFinishHint(){
