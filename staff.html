@@ -146,6 +146,17 @@
       </select>
       <div class="err" id="errType">กรุณาเลือกประเภทเรื่อง</div>
 
+      <div id="scopeWrap" style="display:none">
+        <label class="f">ขอบเขตผลกระทบ</label>
+        <select id="impactScope">
+          <option value="">— ไม่ระบุ / ไม่ทราบ —</option>
+          <option value="เฉพาะจุด">เฉพาะจุด / บ้านเดียว</option>
+          <option value="วงกว้าง">วงกว้าง / หลายหลังคาเรือน</option>
+          <option value="อันตราย">อันตราย / ไม่ปลอดภัย / เป็นข่าว</option>
+        </select>
+        <div style="font-size:12px;color:var(--muted,#6b7280);margin:4px 0 2px">ช่วยจัดระดับความเร่งด่วน — "วงกว้าง" หรือ "อันตราย" จะยกเป็นงานฉุกเฉิน</div>
+      </div>
+
       <label class="f">รายละเอียด <span class="req">*</span></label>
       <textarea id="description" maxlength="500" placeholder="รายละเอียดที่ลูกค้าแจ้ง..."></textarea>
       <div class="counter"><span id="cnt">0</span> / 500</div>
@@ -268,9 +279,16 @@ document.getElementById("channelChips").addEventListener("click", (e) => {
   state.channel = c.dataset.v;
   hideErr("errChannel");
 });
+function toggleScope(){
+  const svc = document.getElementById("serviceType").value;
+  const show = (svc === "repair") || (state.complaintType === "คุณภาพน้ำ");
+  document.getElementById("scopeWrap").style.display = show ? "block" : "none";
+  if(!show) document.getElementById("impactScope").value = "";
+}
 document.getElementById("complaintType").addEventListener("change", (e) => {
   state.complaintType = e.target.value;
   if (state.complaintType) hideErr("errType");
+  toggleScope();
 });
 
 /* ---------- ประเภทเรื่อง เปลี่ยนตามประเภทบริการ (cascading) ---------- */
@@ -298,6 +316,7 @@ function fillComplaintTypes(){
   sel.innerHTML = '<option value="">— เลือกประเภทเรื่อง —</option>' +
     list.map(o => `<option value="${o[0]}">${o[1]}</option>`).join("");
   state.complaintType = "";
+  toggleScope();
 }
 document.getElementById("serviceType").addEventListener("change", fillComplaintTypes);
 fillComplaintTypes();   // init ตามค่า default (ร้องเรียน)
@@ -453,6 +472,7 @@ async function submitForm(){
   const payload = {
     serviceType: document.getElementById("serviceType").value,
     complaintType: state.complaintType,
+    impactScope: document.getElementById("impactScope").value,
     subject: "",
     customerCode: customerCode,
     description: description,

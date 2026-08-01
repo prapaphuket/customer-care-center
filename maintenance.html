@@ -134,6 +134,17 @@
       </select>
       <div class="err" id="errType">กรุณาเลือกประเภทเรื่อง</div>
 
+      <div id="scopeWrap" style="display:none">
+        <label class="f">ขอบเขตผลกระทบ</label>
+        <select id="impactScope">
+          <option value="">— ไม่ระบุ / ไม่ทราบ —</option>
+          <option value="เฉพาะจุด">เฉพาะจุด / บ้านเดียว</option>
+          <option value="วงกว้าง">วงกว้าง / หลายหลังคาเรือน</option>
+          <option value="อันตราย">อันตราย / ไม่ปลอดภัย / เป็นข่าว</option>
+        </select>
+        <div style="font-size:12px;color:#6b7280;margin:4px 0 2px">ช่วยจัดระดับความเร่งด่วน — "วงกว้าง" หรือ "อันตราย" จะยกเป็นงานฉุกเฉิน</div>
+      </div>
+
       <label class="f">รายละเอียด <span class="req">*</span></label>
       <textarea id="description" maxlength="500" placeholder="อธิบายปัญหาที่พบ..."></textarea>
       <div class="counter"><span id="cnt">0</span> / 500</div>
@@ -262,9 +273,15 @@ window.addEventListener("load", async () => {
 });
 
 /* ---------- Chips ---------- */
+function toggleScope(){
+  const show = state.complaintType !== "";
+  document.getElementById("scopeWrap").style.display = show ? "block" : "none";
+  if(!show) document.getElementById("impactScope").value = "";
+}
 document.getElementById("complaintType").addEventListener("change", (e) => {
   state.complaintType = e.target.value;
   if (state.complaintType) hideErr("errType");
+  toggleScope();
 });
 
 /* ---------- Village dropdown (ตามตำบล) ---------- */
@@ -391,6 +408,7 @@ function hideErr(id){ document.getElementById(id).style.display = "none"; }
 function clearForm(){
   state.complaintType=""; state.gps=""; state.photos=[];
   document.getElementById("complaintType").value="";
+  document.getElementById("impactScope").value=""; toggleScope();
   ["description","contactName","contactPhone","customerCode"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("pdpaConsent").checked=false;
   document.getElementById("tambon").value="";
@@ -428,6 +446,7 @@ async function submitForm(){
   const payload = {
     serviceType: CONFIG.serviceType,
     complaintType: state.complaintType,
+    impactScope: document.getElementById("impactScope").value,
     subject: "",
     customerCode: customerCode,
     description: description,
