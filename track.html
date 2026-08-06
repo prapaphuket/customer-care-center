@@ -308,11 +308,15 @@ function openDetail(ticketId){
   add("ผู้แจ้ง", [escapeHtml(cname), cphone?("โทร "+escapeHtml(cphone)):""].filter(Boolean).join(" · "));
   add("วันที่แจ้ง", fmtFull(g(raw,"Created","CreatedDate")));
 
+  // เฟส 1: ซ่อนส่วน SLA ไว้ก่อน — เปิดใช้โดยเปลี่ยน SHOW_SLA = true
+  const SHOW_SLA = false;
   const ack=g(raw,"AckDueDate"), due=g(raw,"DueDate"), closed=g(raw,"ClosedDate");
-  if(ack||due||closed) sec("กำหนดเวลา (SLA)");
-  add("กำหนดตอบรับ", fmtFull(ack));
-  add("กำหนดแล้วเสร็จ", fmtFull(due));
-  add("ปิดงานเมื่อ", fmtFull(closed));
+  if(SHOW_SLA && (ack||due||closed)){
+    sec("กำหนดเวลา (SLA)");
+    add("กำหนดตอบรับ", fmtFull(ack));
+    add("กำหนดแล้วเสร็จ", fmtFull(due));
+    add("ปิดงานเมื่อ", fmtFull(closed));
+  }
 
   const rate=Number(g(raw,"Rating"))||0;
   if(rate>0){
