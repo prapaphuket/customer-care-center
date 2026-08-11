@@ -456,15 +456,20 @@ function renderListItems(){
   }).join("");
   box.querySelectorAll(".li").forEach(el=>{ el.onclick = ()=>renderDetail(all[+el.dataset.i]); });
 }
+function onFilterChange(){
+  document.getElementById("detailCard").classList.add("hidden");  // ซ่อนรายละเอียดเก่า
+  current = null;
+  renderListItems();
+}
 document.querySelectorAll("#listFilters .lf").forEach(b=>{
   b.onclick = ()=>{
     listFilter = b.dataset.f;
     document.querySelectorAll("#listFilters .lf").forEach(x=>x.classList.remove("active"));
     b.classList.add("active");
-    renderListItems();
+    onFilterChange();
   };
 });
-document.getElementById("typeFilter").onchange = function(){ typeFilter = this.value; renderListItems(); };
+document.getElementById("typeFilter").onchange = function(){ typeFilter = this.value; onFilterChange(); };
 
 // ---- แสดงรายการล่าสุด ----
 async function doList(){
