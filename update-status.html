@@ -155,6 +155,9 @@
       #listFilters .lf.active{background:var(--navy,#3C549A);color:#fff;border-color:var(--navy,#3C549A);}
       #listFilters .lf.active[data-f="overdue"]{background:#C0392B;border-color:#C0392B;}
     </style>
+    <select id="typeFilter" style="width:100%;margin:0 0 10px;">
+      <option value="">— ทุกประเภทเรื่อง —</option>
+    </select>
     <div id="listBox"></div>
   </div>
 
@@ -418,7 +421,16 @@ async function doSearch(){
 
 // ---- filter รายการล่าสุด ----
 let listFilter = "all";
+let typeFilter = "";
+function populateTypeFilter(all){
+  const sel = document.getElementById("typeFilter");
+  const types = [...new Set(all.map(it=>val(g(it,"ComplaintType"))).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">— ทุกประเภทเรื่อง —</option>' +
+    types.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join("");
+  typeFilter = "";
+}
 function passListFilter(it){
+  if(typeFilter && (val(g(it,"ComplaintType"))||"") !== typeFilter) return false;
   const st = val(g(it,"Status"))||"รับเรื่อง";
   if(listFilter==="progress") return st==="ดำเนินการ";
   if(listFilter==="done")     return st==="เสร็จสิ้น";
@@ -452,6 +464,7 @@ document.querySelectorAll("#listFilters .lf").forEach(b=>{
     renderListItems();
   };
 });
+document.getElementById("typeFilter").onchange = function(){ typeFilter = this.value; renderListItems(); };
 
 // ---- แสดงรายการล่าสุด ----
 async function doList(){
@@ -468,6 +481,7 @@ async function doList(){
       box._allItems = items;
       listFilter = "all";
       document.querySelectorAll("#listFilters .lf").forEach(x=>x.classList.toggle("active", x.dataset.f==="all"));
+      populateTypeFilter(items);
       renderListItems();
     }
     document.getElementById("listCard").classList.remove("hidden");
