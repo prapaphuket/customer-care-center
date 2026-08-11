@@ -144,6 +144,17 @@
   <!-- รายการล่าสุด -->
   <div class="card hidden" id="listCard">
     <label>เลือกงานที่ต้องการอัปเดต</label>
+    <div id="listFilters" style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px;">
+      <button type="button" class="lf active" data-f="all">ทั้งหมด</button>
+      <button type="button" class="lf" data-f="progress">กำลังดำเนินการ</button>
+      <button type="button" class="lf" data-f="done">เสร็จสิ้น</button>
+      <button type="button" class="lf" data-f="overdue">⏰ เกิน SLA</button>
+    </div>
+    <style>
+      #listFilters .lf{border:1px solid var(--border,#d0d5dd);background:#fff;color:var(--navy,#3C549A);border-radius:999px;padding:5px 13px;font-size:13px;font-family:inherit;cursor:pointer;}
+      #listFilters .lf.active{background:var(--navy,#3C549A);color:#fff;border-color:var(--navy,#3C549A);}
+      #listFilters .lf.active[data-f="overdue"]{background:#C0392B;border-color:#C0392B;}
+    </style>
     <div id="listBox"></div>
   </div>
 
@@ -405,6 +416,43 @@ async function doSearch(){
   finally{ btn.disabled=false; btn.textContent="ค้นหา"; }
 }
 
+// ---- filter รายการล่าสุด ----
+let listFilter = "all";
+function passListFilter(it){
+  const st = val(g(it,"Status"))||"รับเรื่อง";
+  if(listFilter==="progress") return st==="ดำเนินการ";
+  if(listFilter==="done")     return st==="เสร็จสิ้น";
+  if(listFilter==="overdue"){
+    if(st==="เสร็จสิ้น") return false;
+    const due = g(it,"DueDate") ? new Date(g(it,"DueDate")) : null;
+    return !!(due && due.getTime() < Date.now());
+  }
+  return true; // all
+}
+function renderListItems(){
+  const box = document.getElementById("listBox");
+  const all = box._allItems || [];
+  const items = all.filter(passListFilter);
+  if(!items.length){ box.innerHTML = '<p class="hint">ไม่มีรายการในหมวดนี้</p>'; return; }
+  box.innerHTML = items.map(it=>{
+    const idx = all.indexOf(it);
+    const st = val(g(it,"Status"))||"รับเรื่อง";
+    return `<div class="li" data-i="${idx}">
+      <div class="t">${esc(g(it,"Title"))} <span class="badge b-${st}" style="margin-left:4px">${esc(st)}</span></div>
+      <div class="m">${esc(val(g(it,"ComplaintType")))} · ${esc(val(g(it,"Tambon")))} · ${esc(fmtDate(g(it,"Created")))}</div>
+    </div>`;
+  }).join("");
+  box.querySelectorAll(".li").forEach(el=>{ el.onclick = ()=>renderDetail(all[+el.dataset.i]); });
+}
+document.querySelectorAll("#listFilters .lf").forEach(b=>{
+  b.onclick = ()=>{
+    listFilter = b.dataset.f;
+    document.querySelectorAll("#listFilters .lf").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    renderListItems();
+  };
+});
+
 // ---- แสดงรายการล่าสุด ----
 async function doList(){
   const msg = document.getElementById("searchMsg");
@@ -415,19 +463,12 @@ async function doList(){
     const res = await callFlow({action:"list"});
     const items = Array.isArray(res) ? res : (res.value || []);
     const box = document.getElementById("listBox");
-    if(!items.length){ box.innerHTML = '<p class="hint">ไม่มีรายการ</p>'; }
+    if(!items.length){ box._allItems=[]; box.innerHTML = '<p class="hint">ไม่มีรายการ</p>'; }
     else{
-      box.innerHTML = items.map((it,i)=>{
-        const st = val(g(it,"Status"))||"รับเรื่อง";
-        return `<div class="li" data-i="${i}">
-          <div class="t">${esc(g(it,"Title"))} <span class="badge b-${st}" style="margin-left:4px">${esc(st)}</span></div>
-          <div class="m">${esc(val(g(it,"ComplaintType")))} · ${esc(val(g(it,"Tambon")))} · ${esc(fmtDate(g(it,"Created")))}</div>
-        </div>`;
-      }).join("");
-      box._items = items;
-      box.querySelectorAll(".li").forEach(el=>{
-        el.onclick = ()=>renderDetail(box._items[+el.dataset.i]);
-      });
+      box._allItems = items;
+      listFilter = "all";
+      document.querySelectorAll("#listFilters .lf").forEach(x=>x.classList.toggle("active", x.dataset.f==="all"));
+      renderListItems();
     }
     document.getElementById("listCard").classList.remove("hidden");
   }catch(e){ show(msg,"err","เกิดข้อผิดพลาด: "+e.message); }
