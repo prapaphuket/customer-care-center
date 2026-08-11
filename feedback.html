@@ -124,23 +124,29 @@
       <label class="f">ประเภทเรื่อง <span class="req">*</span></label>
       <select id="complaintType">
         <option value="">— เลือกประเภทเรื่อง —</option>
-        <option value="คุณภาพน้ำ">คุณภาพน้ำ</option>
-        <option value="ชำระค่าน้ำ/ใบแจ้งหนี้">ชำระค่าน้ำ / ใบแจ้งหนี้</option>
-        <option value="บริการ/พนักงาน">บริการ / พนักงาน</option>
-        <option value="อื่นๆ">อื่นๆ</option>
+        <optgroup label="คุณภาพน้ำ">
+          <option value="น้ำมีกลิ่นผิดปกติ">น้ำมีกลิ่นผิดปกติ</option>
+          <option value="น้ำมีสีผิดปกติ">น้ำมีสีผิดปกติ</option>
+          <option value="น้ำขุ่น/มีตะกอน">น้ำขุ่น/มีตะกอน</option>
+          <option value="น้ำเค็ม/น้ำกร่อย">น้ำเค็ม/น้ำกร่อย</option>
+        </optgroup>
+        <optgroup label="บุคลากร">
+          <option value="พฤติกรรม/การพูดจา/แต่งกายไม่สุภาพ">พฤติกรรม/การพูดจา/แต่งกายไม่สุภาพ</option>
+          <option value="พนักงานไม่เอาใจใส่ลูกค้า">พนักงานไม่เอาใจใส่ลูกค้า</option>
+        </optgroup>
+        <optgroup label="การบริการ">
+          <option value="ติดตั้งมาตรน้ำไม่เรียบร้อย">ติดตั้งมาตรน้ำไม่เรียบร้อย</option>
+          <option value="ให้บริการล่าช้า">ให้บริการล่าช้า</option>
+          <option value="คืนสภาพพื้นที่ไม่เรียบร้อย">คืนสภาพพื้นที่ไม่เรียบร้อย</option>
+        </optgroup>
+        <optgroup label="ชำระค่าน้ำ/ใบแจ้งหนี้">
+          <option value="ราคาน้ำสูงผิดปกติ">ราคาน้ำสูงผิดปกติ</option>
+        </optgroup>
+        <optgroup label="อื่นๆ">
+          <option value="อื่นๆ">อื่นๆ</option>
+        </optgroup>
       </select>
       <div class="err" id="errType">กรุณาเลือกประเภทเรื่อง</div>
-
-      <div id="scopeWrap" style="display:none">
-        <label class="f">ขอบเขตผลกระทบ</label>
-        <select id="impactScope">
-          <option value="">— ไม่ระบุ / ไม่ทราบ —</option>
-          <option value="เฉพาะจุด">เฉพาะจุด / บ้านเดียว</option>
-          <option value="วงกว้าง">วงกว้าง / หลายหลังคาเรือน</option>
-          <option value="อันตราย">อันตราย / ไม่ปลอดภัย / เป็นข่าว</option>
-        </select>
-        <div style="font-size:12px;color:#6b7280;margin:4px 0 2px">ช่วยจัดระดับความเร่งด่วน — "วงกว้าง" หรือ "อันตราย" จะยกเป็นงานฉุกเฉิน</div>
-      </div>
 
       <label class="f">รายละเอียด <span class="req">*</span></label>
       <textarea id="description" maxlength="500" placeholder="อธิบายปัญหาที่พบ..."></textarea>
@@ -273,16 +279,9 @@ window.addEventListener("load", async () => {
 });
 
 /* ---------- Chips ---------- */
-const SCOPE_TYPES = ["คุณภาพน้ำ"];
-function toggleScope(){
-  const show = SCOPE_TYPES.indexOf(state.complaintType) !== -1;
-  document.getElementById("scopeWrap").style.display = show ? "block" : "none";
-  if(!show) document.getElementById("impactScope").value = "";
-}
 document.getElementById("complaintType").addEventListener("change", (e) => {
   state.complaintType = e.target.value;
   if (state.complaintType) hideErr("errType");
-  toggleScope();
 });
 
 /* ---------- Village dropdown (ตามตำบล) ---------- */
@@ -424,7 +423,6 @@ function hideErr(id){ document.getElementById(id).style.display = "none"; }
 function clearForm(){
   state.complaintType=""; state.gps=""; state.photos=[];
   document.getElementById("complaintType").value="";
-  document.getElementById("impactScope").value=""; toggleScope();
   ["description","contactName","contactPhone","customerCode"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("pdpaConsent").checked=false;
   document.getElementById("tambon").value="";
@@ -462,7 +460,6 @@ async function submitForm(){
   const payload = {
     serviceType: CONFIG.serviceType,
     complaintType: state.complaintType,
-    impactScope: document.getElementById("impactScope").value,
     subject: "",
     customerCode: customerCode,
     description: description,

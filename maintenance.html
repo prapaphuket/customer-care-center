@@ -124,26 +124,22 @@
       <label class="f">ประเภทงานซ่อม <span class="req">*</span></label>
       <select id="complaintType">
         <option value="">— เลือกประเภทงานซ่อม —</option>
-        <option value="ท่อรั่ว/แตก">ท่อประปารั่ว / แตก</option>
-        <option value="น้ำไม่ไหล/ไหลอ่อน">น้ำไม่ไหล / ไหลอ่อน</option>
-        <option value="มาตรวัดน้ำชำรุด">มาตรวัดน้ำ (มิเตอร์) ชำรุด</option>
-        <option value="น้ำรั่วหน้ามาตร">น้ำรั่วบริเวณ / หน้ามาตรวัดน้ำ</option>
-        <option value="ฝาบ่อ/ประตูน้ำชำรุด">ฝาท่อ / ฝาบ่อ / ประตูน้ำชำรุด</option>
-        <option value="แรงดันน้ำผิดปกติ">แรงดันน้ำผิดปกติ (สูง/ต่ำ)</option>
-        <option value="อื่นๆ">อื่นๆ (งานซ่อม)</option>
+        <optgroup label="ปริมาณน้ำ">
+          <option value="น้ำไม่ไหล">น้ำไม่ไหล</option>
+          <option value="น้ำไหลอ่อน/หยุดเป็นช่วง">น้ำไหลอ่อน/หยุดเป็นช่วง</option>
+          <option value="แรงดันน้ำผิดปกติ">แรงดันน้ำผิดปกติ</option>
+        </optgroup>
+        <optgroup label="ท่อแตก/ท่อรั่ว">
+          <option value="ท่อแตก/รั่ว (ที่อยู่อาศัย)">ท่อแตก/รั่ว (ที่อยู่อาศัย)</option>
+          <option value="ท่อแตก/รั่ว (ท่อเมน)">ท่อแตก/รั่ว (ท่อเมน)</option>
+        </optgroup>
+        <optgroup label="อุปกรณ์ชำรุด">
+          <option value="มาตรวัดน้ำชำรุด">มาตรวัดน้ำชำรุด</option>
+          <option value="น้ำรั่วหน้ามาตร">น้ำรั่วหน้ามาตร</option>
+          <option value="ฝาบ่อ/ประตูน้ำชำรุด">ฝาบ่อ/ประตูน้ำชำรุด</option>
+        </optgroup>
       </select>
       <div class="err" id="errType">กรุณาเลือกประเภทเรื่อง</div>
-
-      <div id="scopeWrap" style="display:none">
-        <label class="f">ขอบเขตผลกระทบ</label>
-        <select id="impactScope">
-          <option value="">— ไม่ระบุ / ไม่ทราบ —</option>
-          <option value="เฉพาะจุด">เฉพาะจุด / บ้านเดียว</option>
-          <option value="วงกว้าง">วงกว้าง / หลายหลังคาเรือน</option>
-          <option value="อันตราย">อันตราย / ไม่ปลอดภัย / เป็นข่าว</option>
-        </select>
-        <div style="font-size:12px;color:#6b7280;margin:4px 0 2px">ช่วยจัดระดับความเร่งด่วน — "วงกว้าง" หรือ "อันตราย" จะยกเป็นงานฉุกเฉิน</div>
-      </div>
 
       <label class="f">รายละเอียด <span class="req">*</span></label>
       <textarea id="description" maxlength="500" placeholder="อธิบายปัญหาที่พบ..."></textarea>
@@ -276,15 +272,9 @@ window.addEventListener("load", async () => {
 });
 
 /* ---------- Chips ---------- */
-function toggleScope(){
-  const show = state.complaintType !== "";
-  document.getElementById("scopeWrap").style.display = show ? "block" : "none";
-  if(!show) document.getElementById("impactScope").value = "";
-}
 document.getElementById("complaintType").addEventListener("change", (e) => {
   state.complaintType = e.target.value;
   if (state.complaintType) hideErr("errType");
-  toggleScope();
 });
 
 /* ---------- Village dropdown (ตามตำบล) ---------- */
@@ -426,7 +416,6 @@ function hideErr(id){ document.getElementById(id).style.display = "none"; }
 function clearForm(){
   state.complaintType=""; state.gps=""; state.photos=[];
   document.getElementById("complaintType").value="";
-  document.getElementById("impactScope").value=""; toggleScope();
   ["description","contactName","contactPhone","customerCode"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("pdpaConsent").checked=false;
   document.getElementById("tambon").value="";
@@ -464,7 +453,6 @@ async function submitForm(){
   const payload = {
     serviceType: CONFIG.serviceType,
     complaintType: state.complaintType,
-    impactScope: document.getElementById("impactScope").value,
     subject: "",
     customerCode: customerCode,
     description: description,

@@ -146,16 +146,14 @@
       </select>
       <div class="err" id="errType">กรุณาเลือกประเภทเรื่อง</div>
 
-      <div id="scopeWrap" style="display:none">
-        <label class="f">ขอบเขตผลกระทบ</label>
-        <select id="impactScope">
-          <option value="">— ไม่ระบุ / ไม่ทราบ —</option>
-          <option value="เฉพาะจุด">เฉพาะจุด / บ้านเดียว</option>
-          <option value="วงกว้าง">วงกว้าง / หลายหลังคาเรือน</option>
-          <option value="อันตราย">อันตราย / ไม่ปลอดภัย / เป็นข่าว</option>
-        </select>
-        <div style="font-size:12px;color:var(--muted,#6b7280);margin:4px 0 2px">ช่วยจัดระดับความเร่งด่วน — "วงกว้าง" หรือ "อันตราย" จะยกเป็นงานฉุกเฉิน</div>
-      </div>
+      <label class="f">ระดับความสำคัญและเร่งด่วน</label>
+      <select id="priorityLevel">
+        <option value="">— ระบบประเมินให้อัตโนมัติ —</option>
+        <option value="ฉุกเฉิน">ฉุกเฉิน (ระดับ 1)</option>
+        <option value="เร่งด่วน">เร่งด่วน (ระดับ 2)</option>
+        <option value="ปกติ">ปกติ (ระดับ 3)</option>
+      </select>
+      <div style="font-size:12px;color:var(--muted,#6b7280);margin:4px 0 2px">เจ้าหน้าที่ประเมินความเร่งด่วน — เว้นว่าง = ระบบตั้งให้ตามประเภทเรื่อง</div>
 
       <label class="f">รายละเอียด <span class="req">*</span></label>
       <textarea id="description" maxlength="500" placeholder="รายละเอียดที่ลูกค้าแจ้ง..."></textarea>
@@ -284,44 +282,35 @@ document.getElementById("channelChips").addEventListener("click", (e) => {
   state.channel = c.dataset.v;
   hideErr("errChannel");
 });
-function toggleScope(){
-  const svc = document.getElementById("serviceType").value;
-  const show = (svc === "repair") || (state.complaintType === "คุณภาพน้ำ");
-  document.getElementById("scopeWrap").style.display = show ? "block" : "none";
-  if(!show) document.getElementById("impactScope").value = "";
-}
 document.getElementById("complaintType").addEventListener("change", (e) => {
   state.complaintType = e.target.value;
   if (state.complaintType) hideErr("errType");
-  toggleScope();
 });
 
-/* ---------- ประเภทเรื่อง เปลี่ยนตามประเภทบริการ (cascading) ---------- */
+/* ---------- ประเภทเรื่อง เปลี่ยนตามประเภทบริการ (cascading + จัดกลุ่ม optgroup) ---------- */
 const COMPLAINT_BY_SERVICE = {
   feedback: [   // ร้องเรียน / แจ้งปัญหา
-    ["คุณภาพน้ำ","คุณภาพน้ำ"],
-    ["ชำระค่าน้ำ/ใบแจ้งหนี้","ชำระค่าน้ำ / ใบแจ้งหนี้"],
-    ["บริการ/พนักงาน","บริการ / พนักงาน"],
-    ["อื่นๆ","อื่นๆ"]
+    ["คุณภาพน้ำ", ["น้ำมีกลิ่นผิดปกติ","น้ำมีสีผิดปกติ","น้ำขุ่น/มีตะกอน","น้ำเค็ม/น้ำกร่อย"]],
+    ["บุคลากร", ["พฤติกรรม/การพูดจา/แต่งกายไม่สุภาพ","พนักงานไม่เอาใจใส่ลูกค้า"]],
+    ["การบริการ", ["ติดตั้งมาตรน้ำไม่เรียบร้อย","ให้บริการล่าช้า","คืนสภาพพื้นที่ไม่เรียบร้อย"]],
+    ["ชำระค่าน้ำ/ใบแจ้งหนี้", ["ราคาน้ำสูงผิดปกติ"]],
+    ["อื่นๆ", ["อื่นๆ"]]
   ],
   repair: [     // แจ้งซ่อม-บำรุงรักษา
-    ["ท่อรั่ว/แตก","ท่อประปารั่ว / แตก"],
-    ["น้ำไม่ไหล/ไหลอ่อน","น้ำไม่ไหล / ไหลอ่อน"],
-    ["มาตรวัดน้ำชำรุด","มาตรวัดน้ำ (มิเตอร์) ชำรุด"],
-    ["น้ำรั่วหน้ามาตร","น้ำรั่วบริเวณ / หน้ามาตรวัดน้ำ"],
-    ["ฝาบ่อ/ประตูน้ำชำรุด","ฝาท่อ / ฝาบ่อ / ประตูน้ำชำรุด"],
-    ["แรงดันน้ำผิดปกติ","แรงดันน้ำผิดปกติ (สูง/ต่ำ)"],
-    ["อื่นๆ","อื่นๆ (งานซ่อม)"]
+    ["ปริมาณน้ำ", ["น้ำไม่ไหล","น้ำไหลอ่อน/หยุดเป็นช่วง","แรงดันน้ำผิดปกติ"]],
+    ["ท่อแตก/ท่อรั่ว", ["ท่อแตก/รั่ว (ที่อยู่อาศัย)","ท่อแตก/รั่ว (ท่อเมน)"]],
+    ["อุปกรณ์ชำรุด", ["มาตรวัดน้ำชำรุด","น้ำรั่วหน้ามาตร","ฝาบ่อ/ประตูน้ำชำรุด"]]
   ]
 };
 function fillComplaintTypes(){
   const svc = document.getElementById("serviceType").value;
-  const list = COMPLAINT_BY_SERVICE[svc] || [];
+  const groups = COMPLAINT_BY_SERVICE[svc] || [];
   const sel = document.getElementById("complaintType");
   sel.innerHTML = '<option value="">— เลือกประเภทเรื่อง —</option>' +
-    list.map(o => `<option value="${o[0]}">${o[1]}</option>`).join("");
+    groups.map(g => '<optgroup label="'+g[0]+'">' +
+      g[1].map(v => '<option value="'+v+'">'+v+'</option>').join("") +
+      '</optgroup>').join("");
   state.complaintType = "";
-  toggleScope();
 }
 document.getElementById("serviceType").addEventListener("change", fillComplaintTypes);
 fillComplaintTypes();   // init ตามค่า default (ร้องเรียน)
@@ -420,6 +409,7 @@ function clearForm(){
   document.getElementById("pdpaConsent").checked=false;
   document.getElementById("serviceType").value="feedback";
   fillComplaintTypes();
+  document.getElementById("priorityLevel").value="";
   document.getElementById("tambon").value="";
   const vsel=document.getElementById("village"); vsel.innerHTML='<option value="">— เลือกตำบลก่อน —</option>'; vsel.disabled=true;
   document.getElementById("cnt").textContent="0";
@@ -492,7 +482,7 @@ async function submitForm(){
   const payload = {
     serviceType: document.getElementById("serviceType").value,
     complaintType: state.complaintType,
-    impactScope: document.getElementById("impactScope").value,
+    priorityLevel: document.getElementById("priorityLevel").value,
     subject: "",
     customerCode: customerCode,
     description: description,
