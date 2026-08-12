@@ -210,15 +210,18 @@ const CONFIG = {
   // ชุดสถานะ — ตรงกับ Choice "Status" ใน SharePoint (ห้ามพิมพ์ผิด)
   statuses: ["รับเรื่อง", "ดำเนินการ", "เสร็จสิ้น"],
 
-  // ประเภทเรื่อง (สำหรับจัดประเภทเคสอีเมล) — value ต้องตรงกับ Choice ComplaintType + Title ใน SLA & Routing Master เป๊ะ
-  // ระบบจะดึงผู้รับผิดชอบ + คำนวณ SLA จาก Master ตามประเภทที่เลือกให้อัตโนมัติ
-  complaintTypes: [
-    { value: "คุณภาพน้ำ", label: "คุณภาพน้ำ" },
-    { value: "ท่อรั่ว/แตก", label: "ท่อรั่ว / แตก" },
-    { value: "น้ำไม่ไหล/ไหลอ่อน", label: "น้ำไม่ไหล / ไหลอ่อน" },
-    { value: "ชำระค่าน้ำ/ใบแจ้งหนี้", label: "ชำระค่าน้ำ / ใบแจ้งหนี้" },
-    { value: "บริการ/พนักงาน", label: "บริการ / พนักงาน" },
-    { value: "อื่นๆ", label: "อื่นๆ" }
+  // ประเภทเรื่อง (สำหรับจัดประเภทเคสอีเมล) — taxonomy 8 กลุ่ม / 19 หัวข้อย่อย
+  // ⚠️ value ต้องตรงกับ Choice "Type detail" (ComplaintType) + Title ใน SLA & Routing Master เป๊ะทุกตัวอักษร
+  // ระบบจะดึงผู้รับผิดชอบ + คำนวณ SLA จาก Master ตามหัวข้อย่อยที่เลือกให้อัตโนมัติ
+  complaintTypeGroups: [
+    ["คุณภาพน้ำ", ["น้ำมีกลิ่นผิดปกติ","น้ำมีสีผิดปกติ","น้ำขุ่น/มีตะกอน","น้ำเค็ม/น้ำกร่อย"]],
+    ["ปริมาณน้ำ", ["น้ำไม่ไหล","น้ำไหลอ่อน/หยุดเป็นช่วง","แรงดันน้ำผิดปกติ"]],
+    ["ท่อแตก/ท่อรั่ว", ["ท่อแตก/รั่ว (ที่อยู่อาศัย)","ท่อแตก/รั่ว (ท่อเมน)"]],
+    ["อุปกรณ์ชำรุด", ["มาตรวัดน้ำชำรุด","น้ำรั่วหน้ามาตร","ฝาบ่อ/ประตูน้ำชำรุด"]],
+    ["บุคลากร", ["พฤติกรรม/การพูดจา/แต่งกายไม่สุภาพ","พนักงานไม่เอาใจใส่ลูกค้า"]],
+    ["การบริการ", ["ติดตั้งมาตรน้ำไม่เรียบร้อย","ให้บริการล่าช้า","คืนสภาพพื้นที่ไม่เรียบร้อย"]],
+    ["ชำระค่าน้ำ/ใบแจ้งหนี้", ["ราคาน้ำสูงผิดปกติ"]],
+    ["อื่นๆ", ["อื่นๆ"]]
   ],
 
   // สถานะที่จะแจ้งเตือนลูกค้าอัตโนมัติเมื่อบันทึก (ให้ยืนยันก่อน)
@@ -320,7 +323,13 @@ function renderDetail(it){
     et.value = (curT==="ไม้ขาว"||curT==="สาคู") ? curT : "รอระบุ";
     fillVillages(et.value, curV);
     const curType = val(g(it,"ComplaintType"));
-    document.getElementById("editComplaintType").innerHTML = CONFIG.complaintTypes.map(c=>`<option value="${esc(c.value)}"${c.value===curType?" selected":""}>${esc(c.label)}</option>`).join("");
+    const known = CONFIG.complaintTypeGroups.some(gr=>gr[1].includes(curType));
+    let html = `<option value=""${known?"":" selected"}>— เลือกประเภทเรื่อง —</option>`;
+    html += CONFIG.complaintTypeGroups.map(([grp,subs])=>
+      `<optgroup label="${esc(grp)}">` +
+      subs.map(s=>`<option value="${esc(s)}"${s===curType?" selected":""}>${esc(s)}</option>`).join("") +
+      `</optgroup>`).join("");
+    document.getElementById("editComplaintType").innerHTML = html;
     locEdit.classList.remove("hidden");
   }else{
     locEdit.classList.add("hidden");
