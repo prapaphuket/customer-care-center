@@ -66,13 +66,13 @@
   .map-head{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;background:var(--navy);color:#fff;}
   .map-head b{font-size:15px;}
   .map-x{background:none;border:none;color:#fff;font-size:19px;cursor:pointer;line-height:1;}
-  #mapEl{width:100%;height:56vh;background:#e8ecf3;}
+  #mapEl{width:100%;height:56vh;background:#e8ecf3;position:relative;z-index:0;}
   /* --- ค้นหาสถานที่บนแผนที่ (Nominatim / OpenStreetMap) --- */
-  .map-search-wrap{position:relative;padding:10px 12px 0;}
+  .map-search-wrap{position:relative;padding:10px 12px 0;z-index:1500;}   /* ต้องสูงกว่า .leaflet-top (1000) ไม่งั้นกล่องผลลัพธ์โดนแผนที่ทับ */
   #mapSearch{width:100%;padding:10px 34px 10px 12px;border:1px solid var(--border);border-radius:9px;font:inherit;font-size:14px;box-sizing:border-box;}
   #mapSearch:focus{outline:none;border-color:var(--navy);}
   .map-search-clear{position:absolute;right:19px;top:19px;background:none;border:none;font-size:15px;color:var(--muted);cursor:pointer;display:none;line-height:1;}
-  .map-sugg{position:absolute;left:12px;right:12px;top:52px;background:#fff;border:1px solid var(--border);border-radius:9px;box-shadow:0 8px 20px rgba(20,26,45,.18);max-height:210px;overflow:auto;z-index:20;display:none;}
+  .map-sugg{position:absolute;left:12px;right:12px;top:52px;background:#fff;border:1px solid var(--border);border-radius:9px;box-shadow:0 8px 20px rgba(20,26,45,.18);max-height:210px;overflow:auto;z-index:1501;display:none;}
   .map-sugg .it{padding:10px 12px;font-size:13.5px;line-height:1.35;border-bottom:1px solid #f0f2f6;cursor:pointer;}
   .map-sugg .it:last-child{border-bottom:none;}
   .map-sugg .it:active{background:#EEF1FA;}
@@ -346,15 +346,13 @@ function initMap(){
   if(state.gps){ const pp=state.gps.split(","); if(pp.length===2 && !isNaN(+pp[0])){ center=[+pp[0], +pp[1]]; zoom=16; } }
   if(!_map){
     _map=L.map("mapEl").setView(center, zoom);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19, attribution:"© OpenStreetMap"}).addTo(_map);
+    const _base = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19, attribution:"© OpenStreetMap"}).addTo(_map);
+    const _sat  = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19, attribution:"Tiles © Esri"});
+    L.control.layers({"แผนที่":_base, "ดาวเทียม":_sat}, null, {position:"topright"}).addTo(_map);
     _marker=L.marker(center,{draggable:true}).addTo(_map);
     _map.on("click", e=>{ _marker.setLatLng(e.latlng); updatePickLabel(e.latlng); reverseGeocode(e.latlng); hideSugg(); });
     _marker.on("dragend", ()=>{ const ll=_marker.getLatLng(); updatePickLabel(ll); reverseGeocode(ll); });
-    const si=document.getElementById("mapSearch");
-    if(si){
-      si.addEventListener("input", onMapSearchInput);
-      si.addEventListener("keydown", ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); clearTimeout(_geoTimer); const q=si.value.trim(); if(q.length>=2) doGeoSearch(q); } });
-    }
+    bindMapSearchOnce();
   } else { _map.setView(center, zoom); _marker.setLatLng(center); }
   _map.invalidateSize();
   updatePickLabel(_marker.getLatLng());
@@ -375,6 +373,18 @@ function escGeo(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&a
 const GEO_VIEWBOX = "98.20,8.30,98.50,7.70";
 let _geoTimer=null, _geoSeq=0, _revTimer=null;
 
+let _searchBound=false;
+function bindMapSearchOnce(){
+  if(_searchBound) return;
+  const si=document.getElementById("mapSearch");
+  if(!si) return;
+  si.addEventListener("input", onMapSearchInput);
+  si.addEventListener("keydown", ev=>{
+    if(ev.key==="Enter"){ ev.preventDefault(); clearTimeout(_geoTimer);
+      const q=si.value.trim(); if(q.length>=2) doGeoSearch(q); }
+  });
+  _searchBound=true;
+}
 function mapSuggBox(){ return document.getElementById("mapSugg"); }
 function hideSugg(){ const b=mapSuggBox(); if(b){ b.style.display="none"; b.innerHTML=""; } }
 function showSuggMsg(t){ const b=mapSuggBox(); if(!b) return; b.innerHTML='<div class="msg">'+t+'</div>'; b.style.display="block"; }
