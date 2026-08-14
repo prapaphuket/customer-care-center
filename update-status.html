@@ -155,8 +155,11 @@
       #listFilters .lf.active{background:var(--navy,#3C549A);color:#fff;border-color:var(--navy,#3C549A);}
       #listFilters .lf.active[data-f="overdue"]{background:#C0392B;border-color:#C0392B;}
     </style>
-    <select id="typeFilter" style="width:100%;margin:0 0 10px;">
+    <select id="typeFilter" style="width:100%;margin:0 0 8px;">
       <option value="">— ทุกประเภทเรื่อง —</option>
+    </select>
+    <select id="ownerFilter" style="width:100%;margin:0 0 10px;">
+      <option value="">— ผู้รับผิดชอบทั้งหมด —</option>
     </select>
     <div id="listBox"></div>
   </div>
@@ -261,7 +264,9 @@ function fillVillages(tambon, selected){
 }
 
 // ---- helpers: อ่านค่าจาก raw SharePoint item ----
-function val(o){ return o==null ? "" : (typeof o==="object" ? (o.Value ?? o.Title ?? o.Email ?? "") : o); }
+function val(o){ return o==null ? "" : (typeof o==="object" ? (o.Value ?? o.DisplayName ?? o.Title ?? o.Email ?? "") : o); }
+let CURRENT_USER = "";    // ชื่อที่แสดงของผู้ล็อกอิน (MSAL) — ใช้แสดงในตัวเลือก "งานของฉัน"
+let CURRENT_EMAIL = "";   // อีเมลผู้ล็อกอิน — ใช้จับคู่กับ AssignedTo.Email (แม่นกว่าเทียบชื่อ)
 function g(it,k){ return it && it[k]!=null ? it[k] : ""; }
 function fmtDate(s){
   if(!s) return "-";
@@ -431,6 +436,18 @@ async function doSearch(){
 // ---- filter รายการล่าสุด ----
 let listFilter = "all";
 let typeFilter = "";
+let ownerFilter = "";
+// ชื่อผู้รับผิดชอบ (Person) — connector คืน DisplayName; สำรองด้วย Title/Email
+function ownerOf(it){
+  const o = g(it,"AssignedTo");
+  if(!o) return "";
+  if(typeof o === "object") return o.DisplayName || o.Title || o.Email || "";
+  return o;
+}
+function ownerEmailOf(it){
+  const o = g(it,"AssignedTo");
+  return (o && typeof o === "object" && o.Email) ? String(o.Email).toLowerCase() : "";
+}
 function populateTypeFilter(all){
   const sel = document.getElementById("typeFilter");
   const types = [...new Set(all.map(it=>val(g(it,"ComplaintType"))).filter(Boolean))].sort();
@@ -438,8 +455,28 @@ function populateTypeFilter(all){
     types.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join("");
   typeFilter = "";
 }
+function populateOwnerFilter(all){
+  const sel = document.getElementById("ownerFilter");
+  const owners = [...new Set(all.map(ownerOf).filter(Boolean))].sort();
+  const unassigned = all.some(it=>!ownerOf(it));
+  let html = '<option value="">— ผู้รับผิดชอบทั้งหมด —</option>';
+  if(CURRENT_USER) html += `<option value="__me__">⭐ งานของฉัน (${esc(CURRENT_USER)})</option>`;
+  html += owners.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("");
+  if(unassigned) html += '<option value="__none__">— ยังไม่มอบหมาย —</option>';
+  sel.innerHTML = html;
+  ownerFilter = "";
+}
 function passListFilter(it){
   if(typeFilter && (val(g(it,"ComplaintType"))||"") !== typeFilter) return false;
+  if(ownerFilter){
+    const ow = ownerOf(it);
+    if(ownerFilter === "__none__"){ if(ow) return false; }
+    else if(ownerFilter === "__me__"){
+      const mine = CURRENT_EMAIL ? (ownerEmailOf(it) === CURRENT_EMAIL) : (ow === CURRENT_USER);
+      if(!mine) return false;
+    }
+    else if(ow !== ownerFilter) return false;
+  }
   const st = val(g(it,"Status"))||"รับเรื่อง";
   if(listFilter==="progress") return st==="ดำเนินการ";
   if(listFilter==="done")     return st==="เสร็จสิ้น";
@@ -461,6 +498,7 @@ function renderListItems(){
     return `<div class="li" data-i="${idx}">
       <div class="t">${esc(g(it,"Title"))} <span class="badge b-${st}" style="margin-left:4px">${esc(st)}</span></div>
       <div class="m">${esc(val(g(it,"ComplaintType")))} · ${esc(val(g(it,"Tambon")))} · ${esc(fmtDate(g(it,"Created")))}</div>
+      <div class="m" style="opacity:.85">👤 ${esc(ownerOf(it) || "ยังไม่มอบหมาย")}</div>
     </div>`;
   }).join("");
   box.querySelectorAll(".li").forEach(el=>{ el.onclick = ()=>renderDetail(all[+el.dataset.i]); });
@@ -479,6 +517,7 @@ document.querySelectorAll("#listFilters .lf").forEach(b=>{
   };
 });
 document.getElementById("typeFilter").onchange = function(){ typeFilter = this.value; onFilterChange(); };
+document.getElementById("ownerFilter").onchange = function(){ ownerFilter = this.value; onFilterChange(); };
 
 // ---- แสดงรายการล่าสุด ----
 async function doList(){
@@ -496,6 +535,7 @@ async function doList(){
       listFilter = "all";
       document.querySelectorAll("#listFilters .lf").forEach(x=>x.classList.toggle("active", x.dataset.f==="all"));
       populateTypeFilter(items);
+      populateOwnerFilter(items);
       renderListItems();
     }
     document.getElementById("listCard").classList.remove("hidden");
@@ -578,7 +618,9 @@ function autoLoadFromLink(){
   });
 
   function grant(account){
-    document.getElementById("userName").textContent = account.name || account.username || "";
+    CURRENT_USER  = account.name || account.username || "";
+    CURRENT_EMAIL = (account.username || "").toLowerCase();
+    document.getElementById("userName").textContent = CURRENT_USER;
     document.getElementById("userBar").style.display = "flex";
     document.getElementById("logoutBtn").onclick = ()=> app.logoutRedirect();
     gate.style.display="none";
