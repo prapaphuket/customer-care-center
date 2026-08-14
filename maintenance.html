@@ -67,6 +67,18 @@
   .map-head b{font-size:15px;}
   .map-x{background:none;border:none;color:#fff;font-size:19px;cursor:pointer;line-height:1;}
   #mapEl{width:100%;height:56vh;background:#e8ecf3;}
+  /* --- ค้นหาสถานที่บนแผนที่ (Nominatim / OpenStreetMap) --- */
+  .map-search-wrap{position:relative;padding:10px 12px 0;}
+  #mapSearch{width:100%;padding:10px 34px 10px 12px;border:1px solid var(--border);border-radius:9px;font:inherit;font-size:14px;box-sizing:border-box;}
+  #mapSearch:focus{outline:none;border-color:var(--navy);}
+  .map-search-clear{position:absolute;right:19px;top:19px;background:none;border:none;font-size:15px;color:var(--muted);cursor:pointer;display:none;line-height:1;}
+  .map-sugg{position:absolute;left:12px;right:12px;top:52px;background:#fff;border:1px solid var(--border);border-radius:9px;box-shadow:0 8px 20px rgba(20,26,45,.18);max-height:210px;overflow:auto;z-index:20;display:none;}
+  .map-sugg .it{padding:10px 12px;font-size:13.5px;line-height:1.35;border-bottom:1px solid #f0f2f6;cursor:pointer;}
+  .map-sugg .it:last-child{border-bottom:none;}
+  .map-sugg .it:active{background:#EEF1FA;}
+  .map-sugg .it b{display:block;font-size:14px;margin-bottom:1px;}
+  .map-sugg .msg{padding:10px 12px;font-size:13px;color:var(--muted);}
+  .map-addr{font-size:12px;color:var(--muted);margin-top:3px;min-height:15px;}
   .map-foot{padding:12px 16px 16px;}
   .map-coord{font-size:14px;font-weight:600;color:var(--text);}
   .map-hint{font-size:12px;color:var(--muted);margin:2px 0 10px;}
@@ -329,8 +341,13 @@ function initMap(){
     _map=L.map("mapEl").setView(center, zoom);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19, attribution:"© OpenStreetMap"}).addTo(_map);
     _marker=L.marker(center,{draggable:true}).addTo(_map);
-    _map.on("click", e=>{ _marker.setLatLng(e.latlng); updatePickLabel(e.latlng); });
-    _marker.on("dragend", ()=>updatePickLabel(_marker.getLatLng()));
+    _map.on("click", e=>{ _marker.setLatLng(e.latlng); updatePickLabel(e.latlng); reverseGeocode(e.latlng); hideSugg(); });
+    _marker.on("dragend", ()=>{ const ll=_marker.getLatLng(); updatePickLabel(ll); reverseGeocode(ll); });
+    const si=document.getElementById("mapSearch");
+    if(si){
+      si.addEventListener("input", onMapSearchInput);
+      si.addEventListener("keydown", ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); clearTimeout(_geoTimer); const q=si.value.trim(); if(q.length>=2) doGeoSearch(q); } });
+    }
   } else { _map.setView(center, zoom); _marker.setLatLng(center); }
   _map.invalidateSize();
   updatePickLabel(_marker.getLatLng());
@@ -340,9 +357,88 @@ function useMyLocationOnMap(){
   if(!navigator.geolocation){ alert("อุปกรณ์ไม่รองรับการระบุตำแหน่ง"); return; }
   navigator.geolocation.getCurrentPosition(p=>{
     const ll=L.latLng(p.coords.latitude, p.coords.longitude);
-    _map.setView(ll,16); _marker.setLatLng(ll); updatePickLabel(ll);
+    _map.setView(ll,16); _marker.setLatLng(ll); updatePickLabel(ll); reverseGeocode(ll);
   }, ()=>alert("ไม่สามารถระบุตำแหน่งปัจจุบันได้"), { enableHighAccuracy:true, timeout:10000 });
 }
+/* หนีอักขระ HTML สำหรับผลลัพธ์ค้นหา (ป้องกันชื่อสถานที่ที่มี < > & ทำ markup พัง) */
+function escGeo(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+/* ---------- ค้นหาสถานที่บนแผนที่ (Nominatim - OpenStreetMap, ไม่ต้องใช้ API key) ---------- */
+/* viewbox = กรอบภูเก็ต ใช้ถ่วงน้ำหนักผลลัพธ์ให้ใกล้พื้นที่บริการก่อน (bounded=0 = ยังค้นนอกกรอบได้) */
+const GEO_VIEWBOX = "98.20,8.30,98.50,7.70";
+let _geoTimer=null, _geoSeq=0, _revTimer=null;
+
+function mapSuggBox(){ return document.getElementById("mapSugg"); }
+function hideSugg(){ const b=mapSuggBox(); if(b){ b.style.display="none"; b.innerHTML=""; } }
+function showSuggMsg(t){ const b=mapSuggBox(); if(!b) return; b.innerHTML='<div class="msg">'+t+'</div>'; b.style.display="block"; }
+function clearMapSearch(){
+  const i=document.getElementById("mapSearch");
+  if(i){ i.value=""; i.focus(); }
+  document.getElementById("mapSearchClear").style.display="none";
+  hideSugg();
+}
+function onMapSearchInput(){
+  const q=(document.getElementById("mapSearch").value||"").trim();
+  document.getElementById("mapSearchClear").style.display = q ? "block" : "none";
+  clearTimeout(_geoTimer);
+  if(q.length < 2){ hideSugg(); return; }
+  _geoTimer=setTimeout(()=>doGeoSearch(q), 650);   // หน่วงกันยิงถี่ (นโยบาย Nominatim)
+}
+async function doGeoSearch(q){
+  const seq = ++_geoSeq;
+  showSuggMsg("กำลังค้นหา...");
+  try{
+    const url="https://nominatim.openstreetmap.org/search?format=jsonv2"
+      +"&q="+encodeURIComponent(q)
+      +"&countrycodes=th&limit=6&addressdetails=1&accept-language=th"
+      +"&viewbox="+GEO_VIEWBOX+"&bounded=0";
+    const res=await fetch(url);
+    if(!res.ok) throw new Error(res.status);
+    const rows=await res.json();
+    if(seq !== _geoSeq) return;              // ผลเก่ามาช้า ทิ้งไป
+    if(!rows.length){ showSuggMsg("ไม่พบสถานที่ที่ค้นหา ลองพิมพ์สั้นลงหรือระบุอำเภอ/ตำบล"); return; }
+    const b=mapSuggBox();
+    b.innerHTML = rows.map((r,i)=>{
+      const parts=String(r.display_name||"").split(",");
+      const head=(r.name && r.name.trim()) ? r.name : parts[0];
+      const rest=parts.slice(1,4).join(",").trim();
+      return '<div class="it" data-i="'+i+'"><b>'+escGeo(head)+'</b>'+escGeo(rest)+'</div>';
+    }).join("");
+    b.style.display="block";
+    b._rows=rows;
+    b.querySelectorAll(".it").forEach(el=>{
+      el.onclick=()=>{
+        const r=b._rows[+el.dataset.i];
+        const ll=L.latLng(parseFloat(r.lat), parseFloat(r.lon));
+        _map.setView(ll, 17); _marker.setLatLng(ll); updatePickLabel(ll);
+        setPickAddr(r.display_name || "");
+        hideSugg();
+        document.getElementById("mapSearch").blur();
+      };
+    });
+  }catch(e){
+    if(seq === _geoSeq) showSuggMsg("ค้นหาไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่");
+  }
+}
+function setPickAddr(t){
+  const el=document.getElementById("pickAddr");
+  if(el) el.textContent = t ? ("📍 "+t) : "";
+}
+/* แปลงพิกัด -> ที่อยู่โดยประมาณ (เรียกเมื่อผู้ใช้ปักหมุด/ลากหมุดเอง) */
+function reverseGeocode(ll){
+  clearTimeout(_revTimer);
+  _revTimer=setTimeout(async ()=>{
+    try{
+      const url="https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=th"
+        +"&lat="+ll.lat+"&lon="+ll.lng;
+      const res=await fetch(url);
+      if(!res.ok) return;
+      const j=await res.json();
+      setPickAddr(j.display_name || "");
+    }catch(e){ /* เงียบไว้ ไม่รบกวนผู้ใช้ */ }
+  }, 700);
+}
+
 function confirmPick(){
   const ll=_marker.getLatLng();
   state.gps = ll.lat.toFixed(6)+","+ll.lng.toFixed(6);
@@ -512,9 +608,15 @@ function closeLiff(){
       <b>ปักหมุดตำแหน่งที่เกิดเหตุ</b>
       <button type="button" class="map-x" onclick="closeMapPicker()" aria-label="ปิด">✕</button>
     </div>
+    <div class="map-search-wrap">
+      <input type="text" id="mapSearch" placeholder="ค้นหาสถานที่ เช่น วัดไม้ขาว, โรงเรียน, ซอย..." autocomplete="off" />
+      <button type="button" class="map-search-clear" id="mapSearchClear" onclick="clearMapSearch()" aria-label="ล้าง">✕</button>
+      <div class="map-sugg" id="mapSugg"></div>
+    </div>
     <div id="mapEl"></div>
     <div class="map-foot">
       <div class="map-coord">พิกัด: <span id="pickCoord">—</span></div>
+      <div class="map-addr" id="pickAddr"></div>
       <div class="map-hint">แตะบนแผนที่ หรือลากหมุด เพื่อเลือกตำแหน่งที่ต้องการ (ใช้กรณีไม่ได้อยู่หน้างาน)</div>
       <div class="map-btns">
         <button type="button" class="gps-btn" onclick="useMyLocationOnMap()">📡 ตำแหน่งฉัน</button>
