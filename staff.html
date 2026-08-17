@@ -133,7 +133,7 @@
         <button class="logout" id="logoutBtn">ออกจากระบบ</button>
       </div>
     </div>
-    <div class="step">สำหรับเจ้าหน้าที่ · รับเรื่องทางโทรศัพท์ / เคาน์เตอร์ / Facebook</div>
+    <div class="step">สำหรับเจ้าหน้าที่ · รับเรื่องทางโทรศัพท์ / เคาน์เตอร์ / อีเมล</div>
 
     <div class="card">
       <p class="lead">กรอกข้อมูลแทนลูกค้า ระบบจะออกหมายเลขอ้างอิง CC- ให้อัตโนมัติ</p>
@@ -142,7 +142,13 @@
       <div class="chips c3" id="channelChips">
         <div class="chip" data-v="โทรศัพท์">📞 โทรศัพท์</div>
         <div class="chip" data-v="เคาน์เตอร์">🏢 เคาน์เตอร์</div>
-        <div class="chip" data-v="Facebook"><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:-2px" fill="#1877F2" aria-hidden="true"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.95.93-1.95 1.88v2.26h3.32l-.53 3.49h-2.79V24C19.61 23.1 24 18.1 24 12.07"/></svg> Facebook</div>
+        <!-- อีเมล: ใช้เมื่อ admin คัดกรองเมลจาก customercare@aeu.co.th แล้วเปิดใบงานเอง
+             (ระบบเปิดใบงานอัตโนมัติจากอีเมลถูกปิดไว้ตั้งแต่ 14/08/2569 — flow CCC-FlowEmail-Intake = Off) -->
+        <div class="chip" data-v="อีเมล">✉️ อีเมล</div>
+        <!-- ซ่อนไว้ก่อน (มติที่ประชุม 14/08/2569 — ยังไม่เปิดใช้ช่องทาง Facebook)
+             เปิดใช้เมื่อไหร่: ลบ style="display:none" ออก และแก้ข้อความ .step ด้านบนให้มี Facebook กลับมา
+             หมายเหตุ: ค่า Choice "Facebook" ใน SharePoint (IntakeChannel) ยังอยู่ ไม่ต้องแก้อะไรเพิ่ม -->
+        <div class="chip" data-v="Facebook" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:-2px" fill="#1877F2" aria-hidden="true"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.95.93-1.95 1.88v2.26h3.32l-.53 3.49h-2.79V24C19.61 23.1 24 18.1 24 12.07"/></svg> Facebook</div>
       </div>
       <div class="err" id="errChannel">กรุณาเลือกช่องทางรับเรื่อง</div>
 
