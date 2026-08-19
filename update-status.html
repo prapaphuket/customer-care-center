@@ -99,6 +99,19 @@
   .userbar{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:12px;color:#cdd6f2;}
   .userbar button{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.45);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;font-family:inherit;}
   .userbar button:hover{background:rgba(255,255,255,.28);}
+  /* ===== รูปที่ลูกค้าแนบมา ===== */
+  .ph-title{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px;}
+  .ph-grid{display:flex;gap:10px;flex-wrap:wrap;}
+  .ph-grid a{display:block;width:92px;height:92px;border-radius:9px;overflow:hidden;border:1px solid var(--line);background:#f2f4f9;}
+  .ph-grid img{width:100%;height:100%;object-fit:cover;display:block;}
+  .ph-note{font-size:11.5px;color:var(--muted);margin-top:7px;line-height:1.5;}
+  .ph-file{display:inline-block;font-size:12.5px;color:var(--navy);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:7px 11px;background:#fff;}
+  .ph-file:hover{background:#FAFBFF;}
+  /* lightbox */
+  #lb{position:fixed;inset:0;background:rgba(0,0,0,.86);display:none;align-items:center;justify-content:center;z-index:200;padding:16px;}
+  #lb.on{display:flex;}
+  #lb img{max-width:100%;max-height:100%;border-radius:8px;}
+  #lb .x{position:absolute;top:14px;right:18px;color:#fff;font-size:34px;line-height:1;cursor:pointer;background:none;border:none;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
 </head>
@@ -171,6 +184,7 @@
       <span class="badge" id="dBadge"></span>
     </div>
     <div id="dFields" style="margin-top:12px;"></div>
+    <div id="dPhotos" class="hidden" style="margin-top:14px;"></div>
     <div id="slaBar"></div>
 
     <!-- ระบุพื้นที่ (เฉพาะเคสอีเมล) -->
@@ -201,6 +215,12 @@
   <p style="text-align:center;font-size:11.5px;color:var(--muted);">
     หน้านี้แก้ไขได้เฉพาะ “สถานะงาน” เท่านั้น · หากต้องแก้ข้อมูลอื่น กรุณาแจ้งผู้ดูแลระบบ
   </p>
+</div>
+
+<!-- ดูรูปขนาดเต็ม -->
+<div id="lb" onclick="closeLb()">
+  <button class="x" type="button" aria-label="ปิด">&times;</button>
+  <img alt="รูปที่ลูกค้าแนบมา" />
 </div>
 
 <script>
@@ -292,8 +312,187 @@ async function callFlow(payload){
   return data;
 }
 
+/* ================= รูปที่ลูกค้าแนบมา ================= */
+const SP_ORIGIN = "https://sevenutilitiesandpower.sharepoint.com";
+let photoReq = 0;   // กัน race เวลาเปิดเคสสลับไปมาเร็ว ๆ
+
+function isImageName(n){ return /\.(jpe?g|png|gif|webp|bmp|heic)$/i.test(n || ""); }
+function mimeOf(n){
+  const e = String(n||"").split(".").pop().toLowerCase();
+  return ({ jpg:"image/jpeg", jpeg:"image/jpeg", png:"image/png", gif:"image/gif",
+            webp:"image/webp", bmp:"image/bmp", heic:"image/heic" })[e] || "application/octet-stream";
+}
+
+// Flow คืนมาเป็น [{Id, Title, AttachmentFiles:[...]}] → แปลงเป็นรายการไฟล์แบน ๆ (พก ItemId ไปด้วย)
+function flattenAttachments(a){
+  if(!Array.isArray(a)) return [];
+  if(a.length && a[0] && Array.isArray(a[0].AttachmentFiles)){
+    return a.reduce((acc,x)=>acc.concat(
+      (x.AttachmentFiles || []).map(f=>Object.assign({ItemId: x.Id || x.ID}, f))
+    ), []);
+  }
+  return a;
+}
+
+function openLb(url){
+  const lb = document.getElementById("lb");
+  lb.querySelector("img").src = url;
+  lb.classList.add("on");
+}
+function closeLb(){
+  const lb = document.getElementById("lb");
+  lb.classList.remove("on");
+  lb.querySelector("img").src = "";
+}
+document.addEventListener("keydown", e=>{ if(e.key === "Escape") closeLb(); });
+
+const SP_SITE   = SP_ORIGIN + "/sites/CustomerCareCenter";
+const SP_LIST   = "d75d2161-661e-4e91-8f28-0e5e86daaced";
+
+// ลิงก์ไฟล์ตรง — ใช้ได้เฉพาะตอน "เปิดแท็บใหม่" (เบราว์เซอร์ส่ง cookie ให้) แต่ใช้เป็น <img src> ไม่ได้
+function fileUrl(f){ return SP_ORIGIN + encodeURI(f.ServerRelativeUrl || ""); }
+
+// ลิงก์ผ่าน REST — รองรับ CORS จึง fetch ข้ามโดเมนพร้อม Bearer token ได้
+function apiFileUrl(f){
+  return SP_SITE + "/_api/web/lists(guid'" + SP_LIST + "')/items(" + f.ItemId +
+         ")/AttachmentFiles('" + encodeURIComponent(f.FileName) + "')/$value";
+}
+
+/* ขอ access token ของ SharePoint ผ่าน MSAL
+   (เบราว์เซอร์ส่ง cookie ของ SharePoint ข้ามโดเมนไม่ได้ จึงต้องดึงไฟล์ด้วย Bearer token แทน) */
+async function getSpToken(interactive){
+  const app = window.MSAL_APP;
+  if(!app) return null;
+  const account = app.getActiveAccount() || app.getAllAccounts()[0];
+  if(!account) return null;
+  const req = { scopes:[SP_ORIGIN + "/AllSites.Read"], account:account };
+  try{
+    const r = await app.acquireTokenSilent(req);
+    return r.accessToken;
+  }catch(e){
+    if(!interactive) return null;
+    try{ const r = await app.acquireTokenPopup(req); return r.accessToken; }
+    catch(e2){ return null; }
+  }
+}
+
+// เปลี่ยนการ์ดรูปให้กลายเป็นปุ่มลิงก์ (ใช้ตอนโหลดรูปไม่สำเร็จ)
+function toFileLink(tile, file){
+  const link = document.createElement("a");
+  link.className = "ph-file"; link.href = fileUrl(file);
+  link.target = "_blank"; link.rel = "noopener";
+  link.textContent = "📎 " + file.FileName;
+  tile.replaceWith(link);
+}
+
+// สร้างการ์ดรูป 1 ใบ (ยังไม่ใส่ src — รอ hydratePhotos ดึงไฟล์ด้วย token)
+function photoTile(file){
+  const url = fileUrl(file);
+  const a = document.createElement("a");
+  a.href = url; a.title = file.FileName; a.target = "_blank"; a.rel = "noopener";
+  a._file = file;
+  const img = document.createElement("img");
+  img.alt = file.FileName;
+  a.onclick = function(e){
+    if(!img.src){ return; }              // ยังโหลดไม่เสร็จ → ปล่อยให้เปิดลิงก์ตามปกติ
+    e.preventDefault(); openLb(img.src);
+  };
+  a.appendChild(img);
+  return a;
+}
+
+// ดึงไฟล์รูปด้วย Bearer token แล้วแปลงเป็น blob URL
+async function hydratePhotos(box, interactive){
+  const tiles = [...box.querySelectorAll(".ph-grid a")].filter(a=>a._file);
+  if(!tiles.length) return;
+  const token = await getSpToken(!!interactive);
+  if(!token){ showPhotoPermBtn(box); tiles.forEach(t=>toFileLink(t, t._file)); return; }
+  for(const t of tiles){
+    try{
+      const r = await fetch(apiFileUrl(t._file), { headers:{ Authorization:"Bearer "+token } });
+      if(!r.ok) throw new Error(r.status);
+      let blob = await r.blob();
+      // SharePoint คืน application/octet-stream → ต้องระบุชนิดรูปเองไม่งั้น <img> ไม่ยอมแสดง
+      if(!/^image\//.test(blob.type)) blob = new Blob([blob], { type: mimeOf(t._file.FileName) });
+      t.querySelector("img").src = URL.createObjectURL(blob);
+    }catch(e){ toFileLink(t, t._file); }
+  }
+}
+
+// ปุ่มให้เจ้าหน้าที่กดอนุญาตสิทธิ์ (กรณีขอ token เงียบ ๆ ไม่ผ่าน)
+function showPhotoPermBtn(box){
+  if(box.querySelector(".ph-perm")) return;
+  const b = document.createElement("button");
+  b.className = "ph-file ph-perm"; b.type = "button";
+  b.style.cursor = "pointer"; b.style.fontFamily = "inherit";
+  b.textContent = "🔓 อนุญาตสิทธิ์เพื่อแสดงรูปในหน้านี้";
+  b.onclick = async function(){
+    b.disabled = true; b.textContent = "กำลังขอสิทธิ์…";
+    const t = await getSpToken(true);
+    b.remove();
+    if(t && current) loadPhotos(g(current,"Title"));
+  };
+  box.appendChild(b);
+}
+
+function renderPhotos(files){
+  const box = document.getElementById("dPhotos");
+  box.innerHTML = "";
+  const list = flattenAttachments(files);
+  if(!list.length){ box.classList.add("hidden"); return; }
+
+  const images = list.filter(f=>isImageName(f.FileName));
+  const others = list.filter(f=>!isImageName(f.FileName));
+
+  const title = document.createElement("div");
+  title.className = "ph-title";
+  title.textContent = "📷 รูป/ไฟล์ที่ลูกค้าแนบมา (" + list.length + ")";
+  box.appendChild(title);
+
+  if(images.length){
+    const grid = document.createElement("div");
+    grid.className = "ph-grid";
+    images.forEach(f=>grid.appendChild(photoTile(f)));
+    box.appendChild(grid);
+  }
+  if(others.length){
+    const wrap = document.createElement("div");
+    wrap.className = "ph-grid";
+    wrap.style.marginTop = images.length ? "8px" : "0";
+    others.forEach(f=>{
+      const link = document.createElement("a");
+      link.className = "ph-file"; link.href = fileUrl(f);
+      link.target = "_blank"; link.rel = "noopener";
+      link.textContent = "📎 " + f.FileName;
+      wrap.appendChild(link);
+    });
+    box.appendChild(wrap);
+  }
+
+  const note = document.createElement("div");
+  note.className = "ph-note";
+  note.textContent = "กดที่รูปเพื่อดูขนาดเต็ม · ถ้าแสดงเป็นชื่อไฟล์แทนรูป ให้กดชื่อไฟล์เพื่อเปิดดูใน SharePoint";
+  box.appendChild(note);
+
+  box.classList.remove("hidden");
+  hydratePhotos(box, false);
+}
+
+// ดึงรายการไฟล์แนบของเคสจาก Flow (คืนมาในคีย์ attachments)
+async function loadPhotos(ticketId){
+  const my = ++photoReq;
+  const box = document.getElementById("dPhotos");
+  box.classList.add("hidden"); box.innerHTML = "";
+  if(!ticketId) return;
+  try{
+    const res = await callFlow({action:"get", ticketId:ticketId});
+    if(my !== photoReq) return;                    // มีการเปิดเคสอื่นแทรกแล้ว
+    renderPhotos(res && res.attachments ? res.attachments : []);
+  }catch(e){ /* เงียบไว้ — ไม่ให้รูปพังทั้งหน้า */ }
+}
+
 // ---- แสดงรายละเอียด 1 งาน ----
-function renderDetail(it){
+function renderDetail(it, attachments){
   current = it;
   const st = val(g(it,"Status")) || "รับเรื่อง";
   document.getElementById("dTicket").textContent = g(it,"Title") || "(ไม่มีเลขที่)";
@@ -317,6 +516,10 @@ function renderDetail(it){
   ).join("");
 
   renderSLA(it);
+
+  // รูปที่ลูกค้าแนบมา — ถ้าเรียกมาจากการค้นหาจะมีมาแล้ว ไม่ต้องยิงซ้ำ
+  if(Array.isArray(attachments)) renderPhotos(attachments);
+  else loadPhotos(g(it,"Title"));
 
   // เคสอีเมล → เปิดให้เจ้าหน้าที่ระบุตำบล/หมู่บ้าน (เคสอื่นล็อก)
   const channel = val(g(it,"IntakeChannel"));
@@ -428,7 +631,10 @@ async function doSearch(){
     const res = await callFlow({action:"get", ticketId:q});
     const items = Array.isArray(res) ? res : (res.value || []);
     if(!items.length){ show(msg,"err","ไม่พบเรื่องเลขที่ "+q); }
-    else{ document.getElementById("listCard").classList.add("hidden"); renderDetail(items[0]); }
+    else{
+      document.getElementById("listCard").classList.add("hidden");
+      renderDetail(items[0], (res && res.attachments) ? res.attachments : []);
+    }
   }catch(e){ show(msg,"err","เกิดข้อผิดพลาด: "+e.message); }
   finally{ btn.disabled=false; btn.textContent="ค้นหา"; }
 }
@@ -612,7 +818,8 @@ function autoLoadFromLink(){
     return;
   }
 
-  const app = new msal.PublicClientApplication({
+  // eslint-disable-next-line
+  const app = window.MSAL_APP = new msal.PublicClientApplication({
     auth:{ clientId:A.clientId, authority:"https://login.microsoftonline.com/"+A.tenantId, redirectUri:A.redirectUri },
     cache:{ cacheLocation:"sessionStorage" }
   });
