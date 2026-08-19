@@ -112,6 +112,18 @@
   #lb.on{display:flex;}
   #lb img{max-width:100%;max-height:100%;border-radius:8px;}
   #lb .x{position:absolute;top:14px;right:18px;color:#fff;font-size:34px;line-height:1;cursor:pointer;background:none;border:none;}
+  /* ===== แจ้งลูกค้าเอง (โทรศัพท์ / เคาน์เตอร์) ===== */
+  .tag-todo{display:inline-block;margin-left:6px;background:#FDECEA;color:#B03A2E;border:1px solid #F5C6C0;border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:600;}
+  .tag-ok{display:inline-block;margin-left:6px;background:#E8F6EF;color:#1E8449;border:1px solid #BFE3D2;border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:600;}
+  #informBox{margin-top:14px;padding:12px 13px;border-radius:9px;border:1px solid;}
+  #informBox.todo{background:#FDECEA;border-color:#F5C6C0;}
+  #informBox.done{background:#E8F6EF;border-color:#BFE3D2;}
+  #informBox .ib-h{font-size:13px;font-weight:700;margin-bottom:5px;}
+  #informBox.todo .ib-h{color:#B03A2E;}
+  #informBox.done .ib-h{color:#1E8449;}
+  #informBox .ib-s{font-size:12px;color:var(--muted);line-height:1.55;}
+  #informBox button{margin-top:9px;width:100%;background:#B03A2E;color:#fff;border:none;border-radius:8px;padding:10px;font-size:14.5px;font-weight:600;font-family:inherit;cursor:pointer;}
+  #informBox button:disabled{opacity:.6;cursor:default;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
 </head>
@@ -171,8 +183,11 @@
     <select id="typeFilter" style="width:100%;margin:0 0 8px;">
       <option value="">— ทุกประเภทเรื่อง —</option>
     </select>
-    <select id="ownerFilter" style="width:100%;margin:0 0 10px;">
+    <select id="ownerFilter" style="width:100%;margin:0 0 8px;">
       <option value="">— ผู้รับผิดชอบทั้งหมด —</option>
+    </select>
+    <select id="channelFilter" style="width:100%;margin:0 0 10px;">
+      <option value="">— ทุกช่องทางที่แจ้งเข้ามา —</option>
     </select>
     <div id="listBox"></div>
   </div>
@@ -186,6 +201,9 @@
     <div id="dFields" style="margin-top:12px;"></div>
     <div id="dPhotos" class="hidden" style="margin-top:14px;"></div>
     <div id="slaBar"></div>
+
+    <!-- แจ้งลูกค้าเอง (เฉพาะเคสโทรศัพท์ / เคาน์เตอร์) -->
+    <div id="informBox" class="hidden"></div>
 
     <!-- ระบุพื้นที่ (เฉพาะเคสอีเมล) -->
     <div id="locEdit" class="hidden" style="margin-top:14px;padding:12px;background:#FEF6E7;border:1px solid #F3E1B5;border-radius:9px;">
@@ -521,6 +539,8 @@ function renderDetail(it, attachments){
   if(Array.isArray(attachments)) renderPhotos(attachments);
   else loadPhotos(g(it,"Title"));
 
+  renderInformBox(it);
+
   // เคสอีเมล → เปิดให้เจ้าหน้าที่ระบุตำบล/หมู่บ้าน (เคสอื่นล็อก)
   const channel = val(g(it,"IntakeChannel"));
   const locEdit = document.getElementById("locEdit");
@@ -608,11 +628,82 @@ function renderSLA(it){
     (sub? `<div class="sub">${esc(sub)}</div>` : "");
 }
 
+/* ===== แจ้งลูกค้าเอง (เคสโทรศัพท์ / เคาน์เตอร์) ===== */
+function renderInformBox(it){
+  const box = document.getElementById("informBox");
+  if(!box) return;
+  box.innerHTML = ""; box.className = "hidden";
+  if(!needsManualInform(it)) return;               // เคส LINE/อีเมล ระบบแจ้งเองอยู่แล้ว
+
+  const st  = val(g(it,"Status")) || "";
+  const ch  = channelOf(it);
+  const done = isInformed(it);
+
+  if(done){
+    box.className = "done";
+    const who = g(it,"InformedBy") || "";
+    const at  = g(it,"InformedAt") ? fmtDate(g(it,"InformedAt")) : "";
+    box.innerHTML =
+      `<div class="ib-h">✓ แจ้งผลให้ลูกค้าแล้ว</div>` +
+      `<div class="ib-s">ช่องทางที่แจ้งเข้ามา: ${esc(ch)}` +
+      (at ? ` · เมื่อ ${esc(at)}` : "") + (who ? ` · โดย ${esc(who)}` : "") + `</div>`;
+    return;
+  }
+
+  box.className = "todo";
+  const phone = g(it,"ContactPhone") || "";
+  const name  = g(it,"ContactName") || "ลูกค้า";
+  const head  = (st === "เสร็จสิ้น")
+    ? "📞 ปิดงานแล้ว — ต้องโทรแจ้งผลให้ลูกค้าเอง"
+    : "📞 เคสนี้ระบบแจ้งเตือนลูกค้าอัตโนมัติไม่ได้";
+  box.innerHTML =
+    `<div class="ib-h">${esc(head)}</div>` +
+    `<div class="ib-s">เรื่องนี้เข้ามาทาง <b>${esc(ch)}</b> จึงไม่มี LINE หรืออีเมลให้ระบบส่งข้อความอัตโนมัติ ` +
+    `กรุณาติดต่อ <b>${esc(name)}</b>${phone ? ` โทร <a href="tel:${esc(phone)}">${esc(phone)}</a>` : ""} ` +
+    `แล้วกดปุ่มด้านล่างเพื่อบันทึกว่าแจ้งแล้ว</div>` +
+    `<button type="button" id="btnInform">บันทึกว่า “แจ้งลูกค้าแล้ว”</button>`;
+  box.classList.remove("hidden");
+
+  document.getElementById("btnInform").onclick = doInform;
+}
+
+async function doInform(){
+  if(!current) return;
+  const btn = document.getElementById("btnInform");
+  const msg = document.getElementById("updateMsg");
+  const ticketId = g(current,"Title");
+  if(!confirm("ยืนยันว่าได้แจ้งผลให้ลูกค้าของเรื่อง \""+ticketId+"\" เรียบร้อยแล้ว?")) return;
+  hide(msg);
+  btn.disabled = true; btn.textContent = "กำลังบันทึก…";
+  try{
+    await callFlow({
+      action: "inform",
+      informed: "yes",
+      ticketId: ticketId,
+      id: String(g(current,"ID") || g(current,"Id") || ""),
+      informedBy: CURRENT_USER || CURRENT_EMAIL || ""
+    });
+    // อัปเดตหน้าจอทันที ไม่ต้องโหลดใหม่
+    current.CustomerInformed = true;
+    current.InformedAt = new Date().toISOString();
+    current.InformedBy = CURRENT_USER || CURRENT_EMAIL || "";
+    renderInformBox(current);
+    show(msg,"ok","บันทึกแล้ว · "+ticketId+" — แจ้งลูกค้าเรียบร้อย");
+    const box = document.getElementById("listBox");
+    if(box && box._allItems) renderListItems();
+  }catch(e){
+    btn.disabled = false; btn.textContent = "บันทึกว่า “แจ้งลูกค้าแล้ว”";
+    show(msg,"err","บันทึกไม่สำเร็จ: "+e.message);
+  }
+}
+
 function syncFinishHint(){
   const sel = document.getElementById("newStatus");
   const hint = document.getElementById("finishHint");
   if(sel.value === CONFIG.notifyOnStatus){
-    hint.textContent = "⚠ เมื่อบันทึกเป็น \""+CONFIG.notifyOnStatus+"\" ระบบจะแจ้งเตือนลูกค้าและขอคะแนนโดยอัตโนมัติ";
+    hint.textContent = (current && needsManualInform(current))
+      ? "⚠ เคสนี้เข้ามาทาง "+channelOf(current)+" ระบบแจ้งเตือนลูกค้าอัตโนมัติไม่ได้ — บันทึกแล้วกรุณาโทรแจ้งลูกค้าเอง"
+      : "⚠ เมื่อบันทึกเป็น \""+CONFIG.notifyOnStatus+"\" ระบบจะแจ้งเตือนลูกค้าและขอคะแนนโดยอัตโนมัติ";
     hint.style.color = "var(--warn)";
   }else{
     hint.textContent = "";
@@ -643,6 +734,12 @@ async function doSearch(){
 let listFilter = "all";
 let typeFilter = "";
 let ownerFilter = "";
+let channelFilter = "";
+// ช่องทางที่ระบบแจ้งเตือนลูกค้าอัตโนมัติไม่ได้ → ต้องให้เจ้าหน้าที่โทร/แจ้งเอง
+const MANUAL_CHANNELS = ["โทรศัพท์","เคาน์เตอร์"];
+function channelOf(it){ return val(g(it,"IntakeChannel")) || ""; }
+function needsManualInform(it){ return MANUAL_CHANNELS.indexOf(channelOf(it)) >= 0; }
+function isInformed(it){ const v = g(it,"CustomerInformed"); return v===true || v==="true" || v==="Yes"; }
 // ชื่อผู้รับผิดชอบ (Person) — connector คืน DisplayName; สำรองด้วย Title/Email
 function ownerOf(it){
   const o = g(it,"AssignedTo");
@@ -672,7 +769,25 @@ function populateOwnerFilter(all){
   sel.innerHTML = html;
   ownerFilter = "";
 }
+function populateChannelFilter(all){
+  const sel = document.getElementById("channelFilter");
+  const chans = [...new Set(all.map(channelOf).filter(Boolean))].sort();
+  let html = '<option value="">— ทุกช่องทางที่แจ้งเข้ามา —</option>';
+  html += '<option value="__manual__">📞 ต้องแจ้งลูกค้าเอง (โทรศัพท์ / เคาน์เตอร์)</option>';
+  html += '<option value="__todo__">⚠️ ปิดงานแล้ว แต่ยังไม่ได้แจ้งลูกค้า</option>';
+  html += chans.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("");
+  sel.innerHTML = html;
+  channelFilter = "";
+}
 function passListFilter(it){
+  if(channelFilter){
+    if(channelFilter === "__manual__"){ if(!needsManualInform(it)) return false; }
+    else if(channelFilter === "__todo__"){
+      const st = val(g(it,"Status"))||"";
+      if(!(needsManualInform(it) && st==="เสร็จสิ้น" && !isInformed(it))) return false;
+    }
+    else if(channelOf(it) !== channelFilter) return false;
+  }
   if(typeFilter && (val(g(it,"ComplaintType"))||"") !== typeFilter) return false;
   if(ownerFilter){
     const ow = ownerOf(it);
@@ -701,10 +816,17 @@ function renderListItems(){
   box.innerHTML = items.map(it=>{
     const idx = all.indexOf(it);
     const st = val(g(it,"Status"))||"รับเรื่อง";
+    const ch = channelOf(it);
+    let tag = "";
+    if(needsManualInform(it) && st==="เสร็จสิ้น"){
+      tag = isInformed(it)
+        ? '<span class="tag-ok">✓ แจ้งลูกค้าแล้ว</span>'
+        : '<span class="tag-todo">📞 ยังไม่ได้แจ้งลูกค้า</span>';
+    }
     return `<div class="li" data-i="${idx}">
-      <div class="t">${esc(g(it,"Title"))} <span class="badge b-${st}" style="margin-left:4px">${esc(st)}</span></div>
+      <div class="t">${esc(g(it,"Title"))} <span class="badge b-${st}" style="margin-left:4px">${esc(st)}</span>${tag}</div>
       <div class="m">${esc(val(g(it,"ComplaintType")))} · ${esc(val(g(it,"Tambon")))} · ${esc(fmtDate(g(it,"Created")))}</div>
-      <div class="m" style="opacity:.85">👤 ${esc(ownerOf(it) || "ยังไม่มอบหมาย")}</div>
+      <div class="m" style="opacity:.85">👤 ${esc(ownerOf(it) || "ยังไม่มอบหมาย")}${ch? " · 📥 "+esc(ch) : ""}</div>
     </div>`;
   }).join("");
   box.querySelectorAll(".li").forEach(el=>{ el.onclick = ()=>renderDetail(all[+el.dataset.i]); });
@@ -724,6 +846,7 @@ document.querySelectorAll("#listFilters .lf").forEach(b=>{
 });
 document.getElementById("typeFilter").onchange = function(){ typeFilter = this.value; onFilterChange(); };
 document.getElementById("ownerFilter").onchange = function(){ ownerFilter = this.value; onFilterChange(); };
+document.getElementById("channelFilter").onchange = function(){ channelFilter = this.value; onFilterChange(); };
 
 // ---- แสดงรายการล่าสุด ----
 async function doList(){
@@ -742,6 +865,7 @@ async function doList(){
       document.querySelectorAll("#listFilters .lf").forEach(x=>x.classList.toggle("active", x.dataset.f==="all"));
       populateTypeFilter(items);
       populateOwnerFilter(items);
+      populateChannelFilter(items);
       renderListItems();
     }
     document.getElementById("listCard").classList.remove("hidden");
@@ -757,7 +881,10 @@ async function doUpdate(){
   const msg = document.getElementById("updateMsg");
 
   if(newStatus === CONFIG.notifyOnStatus){
-    if(!confirm("ยืนยันปิดงาน \""+ticketId+"\" เป็น \""+CONFIG.notifyOnStatus+"\"?\nระบบจะแจ้งเตือนลูกค้าและขอคะแนนอัตโนมัติ")) return;
+    const note = needsManualInform(current)
+      ? "\nเคสนี้เข้ามาทาง "+channelOf(current)+" ระบบแจ้งเตือนลูกค้าอัตโนมัติไม่ได้ — ต้องโทรแจ้งลูกค้าเอง"
+      : "\nระบบจะแจ้งเตือนลูกค้าและขอคะแนนอัตโนมัติ";
+    if(!confirm("ยืนยันปิดงาน \""+ticketId+"\" เป็น \""+CONFIG.notifyOnStatus+"\"?"+note)) return;
   }
   const emailLoc = !document.getElementById("locEdit").classList.contains("hidden");
   if(emailLoc){
@@ -784,6 +911,9 @@ async function doUpdate(){
     else current.Status = newStatus;
     const badge = document.getElementById("dBadge");
     badge.textContent = newStatus; badge.className="badge b-"+newStatus;
+    renderInformBox(current);   // ปิดงานแล้ว → เตือนให้โทรแจ้งลูกค้า (เคสโทร/เคาน์เตอร์)
+    const lbox = document.getElementById("listBox");
+    if(lbox && lbox._allItems) renderListItems();
   }catch(e){ show(msg,"err","บันทึกไม่สำเร็จ: "+e.message); }
   finally{ btn.disabled=false; btn.textContent="บันทึกสถานะ"; }
 }
