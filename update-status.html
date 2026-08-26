@@ -633,7 +633,7 @@ function renderInformBox(it){
   const box = document.getElementById("informBox");
   if(!box) return;
   box.innerHTML = ""; box.className = "hidden";
-  if(!needsManualInform(it)) return;               // เคส LINE/อีเมล ระบบแจ้งเองอยู่แล้ว
+  if(!needsManualInform(it)) return;               // เคส LINE OA / อีเมล ระบบแจ้งเองอยู่แล้ว
 
   const st  = val(g(it,"Status")) || "";
   const ch  = channelOf(it);
@@ -736,7 +736,7 @@ let typeFilter = "";
 let ownerFilter = "";
 let channelFilter = "";
 // ช่องทางที่ระบบแจ้งเตือนลูกค้าอัตโนมัติไม่ได้ → ต้องให้เจ้าหน้าที่โทร/แจ้งเอง
-const MANUAL_CHANNELS = ["โทรศัพท์","เคาน์เตอร์"];
+const MANUAL_CHANNELS = ["โทรศัพท์","เคาน์เตอร์","LINE กลุ่ม"];
 function channelOf(it){ return val(g(it,"IntakeChannel")) || ""; }
 function needsManualInform(it){ return MANUAL_CHANNELS.indexOf(channelOf(it)) >= 0; }
 function isInformed(it){ const v = g(it,"CustomerInformed"); return v===true || v==="true" || v==="Yes"; }
@@ -773,7 +773,7 @@ function populateChannelFilter(all){
   const sel = document.getElementById("channelFilter");
   const chans = [...new Set(all.map(channelOf).filter(Boolean))].sort();
   let html = '<option value="">— ทุกช่องทางที่แจ้งเข้ามา —</option>';
-  html += '<option value="__manual__">📞 ต้องแจ้งลูกค้าเอง (โทรศัพท์ / เคาน์เตอร์)</option>';
+  html += '<option value="__manual__">📞 ต้องแจ้งลูกค้าเอง (โทรศัพท์ / เคาน์เตอร์ / LINE กลุ่ม)</option>';
   html += '<option value="__todo__">⚠️ ปิดงานแล้ว แต่ยังไม่ได้แจ้งลูกค้า</option>';
   html += chans.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("");
   sel.innerHTML = html;
